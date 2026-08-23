@@ -18,11 +18,11 @@
 # local clone. These can be filled to set a different source if desired.
 
 casim:
-    source: https://github.com/MetOffice/casim.git
+    source: git@github.com:MetOffice/casim.git
     ref: 2026.07.1
 
 jules:
-    source: https://github.com/MetOffice/jules.git
+    source: git@github.com:MetOffice/jules.git
     ref: 2026.07.1
 
 lfric_apps:
@@ -30,25 +30,25 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: https://github.com/MetOffice/lfric_core.git
+    source: git@github.com:MetOffice/lfric_core.git
     ref: 60fc29a199126c22c66b8263c43e1d35c3213052
 
 moci:
-    source: https://github.com/MetOffice/moci.git
+    source: git@github.com:MetOffice/moci.git
     ref: 2026.07.1
 
 SimSys_Scripts:
-    source: https://github.com/MetOffice/SimSys_Scripts.git
+    source: git@github.com:MetOffice/SimSys_Scripts.git
     ref: 77a5166b7fc656a3411aacd1fca8db76c2382863
 
 socrates:
-    source: https://github.com/MetOffice/socrates.git
+    source: git@github.com:MetOffice/socrates.git
     ref: 2026.07.1
 
 socrates-spectral:
-    source: https://github.com/MetOffice/socrates-spectral.git
+    source: git@github.com:MetOffice/socrates-spectral.git
     ref: 2026.07.1
 
 ukca:
-    source: https://github.com/MetOffice/ukca.git
+    source: git@github.com:MetOffice/ukca.git
     ref: 9fc2b6da8701f4904911b561a2738e3f16c4e501
