@@ -29,17 +29,12 @@ cd venus/container
 docker build --platform linux/amd64 -t lfric_dev:amd64 .
 ```
 
-**Always build x86-64**, on both laptop and cluster. The recipe has no
-arch-specific paths and does build natively on aarch64, but the resulting
-image **cannot run LFRic**: XIOS's `CMesh::createMeshEpsilon` (`src/node/mesh.cpp`)
-declares `int nNodes` / `int nEdges` and then passes them to `MPI_Bcast` as
-`MPI_UNSIGNED_LONG`, writing 8 bytes into a 4-byte stack slot. Seven sites, present
-in both r2252 and r2904. It is benign in practice on x86-64 and segfaults on
-aarch64, in the UGRID output path LFRic depends on. So the laptop runs the
-x86-64 image under QEMU emulation (slow but bit-faithful to the cluster — the
-`vpcm_dev` precedent), and the cluster runs it natively under podman.
-
-Worth reporting upstream to IPSL, and to the LFRic team given ARM HPC interest.
+**Always build x86-64**, on both laptop and cluster: the laptop runs it under QEMU
+emulation (slow, but bit-faithful to the cluster — the `vpcm_dev` precedent), the
+cluster runs it natively under podman. The recipe does build natively on aarch64,
+but the resulting image cannot run the model — do not "fix" this by dropping the
+`--platform` flag. See BUG-001 in the bug log (planning folder, path in the
+top-level `CLAUDE.md`).
 
 ## Run
 

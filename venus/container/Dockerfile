@@ -91,9 +91,9 @@ RUN git clone --recursive --depth 1 --branch v4.12.0 \
 # XIOS source selection. XIOS_SRC=git uses hiker/xios-2252 -- a git mirror of
 # XIOS2 trunk at r2252 maintained by an LFRic build-system author and described
 # as "used for LFRic and NEMO". XIOS_SRC=donor takes r2904 from the vpcm_dev
-# image. r2904 segfaults in CMesh::createMeshEpsilon when writing LFRic's UGRID
-# output, so git/r2252 is the default until the IPSL forge is reachable and the
-# LFRic-pinned r2701 can be fetched directly.
+# image. donor/r2904 is the default, being nearer LFRic's pinned r2701; switch
+# to git/r2252 only to test that variable. Neither revision can run LFRic on
+# aarch64 -- see BUG-001 in the bug log (path in the top-level CLAUDE.md).
 ARG XIOS_SRC=donor
 COPY --from=xiossrc /trunk/XIOS /opt/xios-donor
 RUN if [ "$XIOS_SRC" = "git" ]; then \
