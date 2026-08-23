@@ -12,6 +12,15 @@ schemes, SOCRATES radiation interface).
 Read `venus/plan.md` first for the development plan — work packages, gates and
 milestones. `venus/feasibility-assessment.md` has the underlying resource survey.
 
+## Current status (2026-08-23)
+
+WP0 of the plan. The build stack is proven — `gungho_model` compiles and links in the
+container against local `lfric_core`. The model does **not** yet run: it segfaults on
+the first XIOS diagnostic write (BUG-001, aarch64-only; hence the x86-64 requirement
+below). Next step is running the C16 Earth example on the x86-64 image, then Venus
+namelists. No Venus source code exists yet — `applications/venus_model/` and
+`science/venus_physics/` are still to be created.
+
 ## Planning documents and bug log — mostly OUTSIDE this repo
 
 | What | Where |
@@ -84,6 +93,23 @@ mpiexec -n 1 ../bin/gungho_model configuration.nml : -n 1 /opt/xios/bin/xios_ser
 ```
 
 Run with `--ulimit stack=-1`; LFRic and XIOS both use large automatic arrays.
+
+## Testing
+
+LFRic ships the infrastructure VPCM lacked: **pFUnit** unit tests (`<project>/unit-test/`
+mirroring `source/`; 258 in core, 315 in apps), Python-driven integration tests, and a
+Cylc/Rose `rose-stem` suite with KGO, lint and config checks. Run one unit test with
+`make unit-tests UNIT_TEST_FILTER=<name>`.
+
+For a new planet, follow the existing precedent rather than inventing a pattern:
+`rose-stem/app/gungho_model/opt/rose-app-{deep,shallow}-hot-jupiter.conf` and
+`rose-app-tidally-locked-earth.conf` are Rose optional-config overlays setting
+`planet_radius`, `domain_height`, `surface_pressure`, `theta_forcing`, `shallow` and an
+initial temperature profile. `rose-app-venus.conf` should look like these. A green
+Venus rose-stem test with KGO is part of the WP0 gate, not a follow-on task.
+
+Keep kernel unit tests free of infrastructure objects — use the canned-data helpers in
+`unit-test/support`, per LFRic's own testing guidance.
 
 ## Related repositories on this machine
 

@@ -7,6 +7,36 @@ holds the detailed resource survey and risk register. Resources: `~/repos/lfric_
 
 ---
 
+## 0. Status
+
+*Last updated 2026-08-23.*
+
+**WP0 is under way; the build stack is proven.** `gungho_model` compiles and links
+against local `lfric_core` inside the `lfric_dev` container. The model does not yet
+run: it segfaults on the first XIOS diagnostic write, root-caused to an aarch64-only
+stack overflow in XIOS's UGRID path — hence the container targets **x86-64** on both
+laptop (QEMU) and cluster (podman). Details, and every hypothesis already ruled out,
+are in the bug log at `~/repos/lfric_venus_scoping/bug-log.md` (BUG-001); defect
+detail is deliberately kept out of this repo.
+
+Done: fork set up with pristine `main` + `venus` branch, purely additive footprint;
+container recipe (`venus/container/`); SOCRATES relocated to `~/repos/socrates_venus`.
+
+Next: prove `gungho_model` runs the C16 Earth example on x86-64, then Venus
+namelists (WP0 step 2).
+
+**Testing precedent found.** `rose-stem/app/gungho_model/opt/` already contains
+`rose-app-deep-hot-jupiter.conf`, `rose-app-shallow-hot-jupiter.conf` and
+`rose-app-tidally-locked-earth.conf` — planet-specific regression configs that set
+`planet_radius`, `domain_height`, `surface_pressure`, `theta_forcing`, `shallow`
+and an initial temperature profile as a Rose optional-config overlay. `rose-app-venus.conf`
+follows that template directly; the non-Earth machinery is already exercised in
+upstream CI. LFRic also ships 258 pFUnit unit tests in core and 315 in apps,
+Python-driven integration tests, and KGO/lint/config checks in rose-stem — so
+LFRic-Venus starts with the test infrastructure VPCM never had, and PSyKAl's
+side-effect-free kernel rule structurally prevents the `SAVE`-state problem that
+made VPCM physics untestable.
+
 ## 1. What each resource is for
 
 | Resource | Role in LFRic-Venus | Used how |
@@ -85,8 +115,12 @@ Principles:
    extension point.
 5. **Angular-momentum budget diagnostic** built in from the start (port the analysis from
    `venuslab/angular_momentum_budget.py` to run on LFRic output).
-6. Run to gate **G1**: multi-Venus-year stability; AM drift quantified; superrotation
-   spin-up qualitatively consistent with published relaxation-forced Venus GCMs.
+6. Add `rose-stem/app/gungho_model/opt/rose-app-venus.conf` plus a KGO, modelled on
+   the existing hot-Jupiter configs, from the first working run — not retrofitted.
+7. Run to gate **G1**: multi-Venus-year stability; AM drift quantified; superrotation
+   spin-up qualitatively consistent with published relaxation-forced Venus GCMs; and a
+   **green rose-stem Venus test with KGO** — testing is part of the gate, not a
+   follow-on task.
 
 *Standalone deliverable: "GungHo in the Venus regime" — publishable regardless of outcome.*
 *If G1 fails on AM conservation, the project stops here at a cost of ~1 FTE-year, and the
@@ -198,8 +232,9 @@ M5 chemistry-coupled (~48).
 
 ## 6. First five concrete actions
 
-1. Build `gungho_model` from the local clones and run its example (Earth, C16).
+1. ~~Build `gungho_model` from the local clones~~ (done) — run its example (Earth,
+   C16) on the x86-64 image.
 2. Ask the GungHo team the variable-cp question (R1) — their answer shapes WP0.
 3. Establish provenance/ownership of `sp_sw_280_je_venus` and availability for WP1a.
 4. Write the Venus namelist set + VIRA relaxation profile; attempt the first dry Venus run.
-5. Move SOCRATES out of the `lfric_core` clone into `~/repos/socrates_venus`.
+5. ~~Move SOCRATES out of the `lfric_core` clone into `~/repos/socrates_venus`.~~ (done)
