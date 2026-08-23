@@ -12,7 +12,7 @@ workflow: the stack is baked into the image, the code is bind-mounted.
 | HDF5 / NetCDF-C / NetCDF-Fortran | 1.10.x / 4.9.2 / 4.6.1 | apt — versions match LFRic `software_dependencies.rst` |
 | PSyclone | 3.3.1 (pinned) | pip |
 | rose_picker | HEAD | github.com/MetOffice/rose_picker |
-| YAXT | 0.11.0 | gitlab.dkrz.de/dkrz-sw/yaxt |
+| YAXT | 0.11.0, `--with-idxtype=long` (LFRic halo indices are int64) | gitlab.dkrz.de/dkrz-sw/yaxt |
 | pFUnit (+gFTL, fArgParse) | 4.12.0 | Goddard-Fortran-Ecosystem |
 | XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | IPSL forge SVN was unreachable at build time; LFRic pins r2701 — revert to a direct `svn checkout -r 2701` of `XIOS2/trunk` when the forge is back |
 

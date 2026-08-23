@@ -31,6 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git subversion wget curl ca-certificates rsync \
     autoconf automake libtool pkg-config \
     mpich libmpich-dev \
+    liburi-perl time \
     libhdf5-dev libnetcdf-dev libnetcdff-dev \
     liblapack-dev libblas-dev \
     python3 python3-pip python3-venv \
@@ -48,7 +49,8 @@ ENV PATH=/opt/lfric-python/bin:$PATH
 # ---------------------------------------------------------------------------
 # rose_picker (GPL-utils, public GitHub mirror).
 # ---------------------------------------------------------------------------
-RUN git clone --depth 1 https://github.com/MetOffice/rose_picker.git /opt/rose_picker
+RUN git clone --depth 1 https://github.com/MetOffice/rose_picker.git /opt/rose_picker \
+    && /opt/lfric-python/bin/pip install --no-cache-dir /opt/rose_picker
 
 # ---------------------------------------------------------------------------
 # YAXT 0.11.0 (halo exchange; DKRZ).
@@ -58,7 +60,7 @@ RUN git clone --depth 1 --branch release-0.11.0 \
     && cd /tmp/yaxt \
     && autoreconf -i \
     && CC=mpicc FC=mpif90 ./configure --prefix=/opt/yaxt \
-         --without-regard-for-quality \
+         --with-idxtype=long --without-regard-for-quality \
     && make -j"$(nproc)" && make install \
     && rm -rf /tmp/yaxt
 
@@ -80,11 +82,6 @@ RUN git clone --recursive --depth 1 --branch v4.12.0 \
 # Arch files follow the pattern proven in the vpcm_dev image.
 # Serial NetCDF: use XIOS "multiple_file" mode.
 # ---------------------------------------------------------------------------
-# XIOS's bundled FCM needs the Perl URI module (a separate layer to keep the
-# earlier build caches; fold into the main apt list on the next full rebuild).
-RUN apt-get update && apt-get install -y --no-install-recommends liburi-perl \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY --from=xiossrc /trunk/XIOS /opt/xios-src
 # Drop the donor's x86 build products and its arch files; ours follow below.
 RUN rm -rf /opt/xios-src/obj /opt/xios-src/lib /opt/xios-src/bin \
@@ -134,16 +131,15 @@ RUN ./make_xios --prod --arch local --netcdf_lib netcdf4_seq --job "$(nproc)" \
 # include/link paths for netcdf, yaxt, xios, pfunit (compile.mk consumes
 # FC/FPP/LDMPI/FFLAGS/LDFLAGS from the environment).
 # ---------------------------------------------------------------------------
-# rose_picker is a pyproject package: install its `rose_picker` console script
-# into the venv (late layer to preserve the XIOS build cache).
-RUN /opt/lfric-python/bin/pip install --no-cache-dir /opt/rose_picker
-
-RUN NFINC=$(nf-config --includedir) && cat > /etc/profile.d/lfric.sh <<PROF
+RUN NFINC=$(nf-config --includedir) && PFU=$(ls -d /opt/pfunit/PFUNIT-*) \
+    && GFTLS=$(ls -d /opt/pfunit/GFTL_SHARED-* 2>/dev/null || true) \
+    && FARG=$(ls -d /opt/pfunit/FARGPARSE-* 2>/dev/null || true) \
+    && cat > /etc/profile.d/lfric.sh <<PROF
 export FC=mpif90
 export FPP="cpp -traditional-cpp"
 export LDMPI=mpif90
-export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I/opt/pfunit/include"
-export LDFLAGS="-L/opt/yaxt/lib -L/opt/xios/lib -L/opt/pfunit/lib"
+export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I$PFU/include -I$GFTLS/include -I$FARG/include"
+export LDFLAGS="-L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
 export LD_LIBRARY_PATH=/opt/yaxt/lib:\$LD_LIBRARY_PATH
 export PATH=/opt/lfric-python/bin:\$PATH
 PROF
