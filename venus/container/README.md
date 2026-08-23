@@ -14,7 +14,7 @@ workflow: the stack is baked into the image, the code is bind-mounted.
 | rose_picker | HEAD | github.com/MetOffice/rose_picker |
 | YAXT | 0.11.0, `--with-idxtype=long` (LFRic halo indices are int64) | gitlab.dkrz.de/dkrz-sw/yaxt |
 | pFUnit (+gFTL, fArgParse) | 4.12.0 | Goddard-Fortran-Ecosystem |
-| XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | IPSL forge SVN was unreachable at build time; LFRic pins r2701 — revert to a direct `svn checkout -r 2701` of `XIOS2/trunk` when the forge is back |
+| XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | IPSL forge SVN was unreachable at build time; LFRic pins r2701 — revert to a direct `svn checkout -r 2701` of `XIOS2/trunk` when the forge is back. `--build-arg XIOS_SRC=git` selects `hiker/xios-2252` instead |
 
 NetCDF is serial: use XIOS `multiple_file` mode. A parallel-HDF5 variant can
 follow for the cluster image if `one_file` output is needed.
@@ -26,23 +26,33 @@ The `vpcm_dev` image must be present locally (`docker pull maureenjcohen/vpcm_de
 
 ```bash
 cd venus/container
-docker build -t lfric_dev .                      # native arch (aarch64 laptop)
-docker buildx build --platform linux/amd64 -t lfric_dev:amd64 .   # cluster arch
+docker build --platform linux/amd64 -t lfric_dev:amd64 .
 ```
 
-The recipe has no arch-specific paths — the same file serves both. Native
-aarch64 builds are for fast local iteration; the x86-64 image is what runs
-under podman on the cluster (and under QEMU on the laptop when bit-faithful
-comparison against cluster output matters — the vpcm_dev precedent).
+**Always build x86-64**, on both laptop and cluster. The recipe has no
+arch-specific paths and does build natively on aarch64, but the resulting
+image **cannot run LFRic**: XIOS's `CMesh::createMeshEpsilon` (`src/node/mesh.cpp`)
+declares `int nNodes` / `int nEdges` and then passes them to `MPI_Bcast` as
+`MPI_UNSIGNED_LONG`, writing 8 bytes into a 4-byte stack slot. Seven sites, present
+in both r2252 and r2904. It is benign in practice on x86-64 and segfaults on
+aarch64, in the UGRID output path LFRic depends on. So the laptop runs the
+x86-64 image under QEMU emulation (slow but bit-faithful to the cluster — the
+`vpcm_dev` precedent), and the cluster runs it natively under podman.
+
+Worth reporting upstream to IPSL, and to the LFRic team given ARM HPC interest.
 
 ## Run
 
 ```bash
-docker run -it --rm \
+docker run -it --rm --ulimit stack=-1 \
   -v ~/repos/lfric_core:/lfric/core \
   -v ~/repos/lfric_apps:/lfric/apps \
-  lfric_dev:latest
+  lfric_dev:amd64
 ```
+
+`dependencies.yaml` keeps its upstream `git@github.com:` URLs; the image
+rewrites them to HTTPS via `git config --system url.…insteadOf`, so no SSH
+keys are needed and the file stays byte-identical to upstream.
 
 Inside (login shell sources `/etc/profile.d/lfric.sh`, which sets
 `FC/FPP/LDMPI/FFLAGS/LDFLAGS` for the LFRic make build):

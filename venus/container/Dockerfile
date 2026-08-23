@@ -38,6 +38,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim less \
     && rm -rf /var/lib/apt/lists/*
 
+# lfric_apps' dependencies.yaml pins its MetOffice repos with git@github.com:
+# SSH URLs. The container has no SSH keys, and all those repos are public, so
+# rewrite SSH->HTTPS here rather than editing dependencies.yaml (which must stay
+# byte-identical to upstream to keep fork rebases cheap).
+RUN git config --system url."https://github.com/".insteadOf "git@github.com:"
+
 # ---------------------------------------------------------------------------
 # Python tools: PSyclone (version pinned per LFRic docs) + build helpers.
 # ---------------------------------------------------------------------------
@@ -82,11 +88,24 @@ RUN git clone --recursive --depth 1 --branch v4.12.0 \
 # Arch files follow the pattern proven in the vpcm_dev image.
 # Serial NetCDF: use XIOS "multiple_file" mode.
 # ---------------------------------------------------------------------------
-COPY --from=xiossrc /trunk/XIOS /opt/xios-src
-# Drop the donor's x86 build products and its arch files; ours follow below.
-RUN rm -rf /opt/xios-src/obj /opt/xios-src/lib /opt/xios-src/bin \
-           /opt/xios-src/ppsrc /opt/xios-src/done /opt/xios-src/flags \
-           /opt/xios-src/cache /opt/xios-src/inc /opt/xios-src/.svn
+# XIOS source selection. XIOS_SRC=git uses hiker/xios-2252 -- a git mirror of
+# XIOS2 trunk at r2252 maintained by an LFRic build-system author and described
+# as "used for LFRic and NEMO". XIOS_SRC=donor takes r2904 from the vpcm_dev
+# image. r2904 segfaults in CMesh::createMeshEpsilon when writing LFRic's UGRID
+# output, so git/r2252 is the default until the IPSL forge is reachable and the
+# LFRic-pinned r2701 can be fetched directly.
+ARG XIOS_SRC=donor
+COPY --from=xiossrc /trunk/XIOS /opt/xios-donor
+RUN if [ "$XIOS_SRC" = "git" ]; then \
+        git clone --depth 1 https://github.com/hiker/xios-2252.git /opt/xios-src; \
+    else \
+        cp -r /opt/xios-donor /opt/xios-src; \
+    fi \
+    && rm -rf /opt/xios-donor \
+    && rm -rf /opt/xios-src/obj /opt/xios-src/lib /opt/xios-src/bin \
+              /opt/xios-src/ppsrc /opt/xios-src/done /opt/xios-src/flags \
+              /opt/xios-src/cache /opt/xios-src/inc /opt/xios-src/.svn \
+              /opt/xios-src/.git
 WORKDIR /opt/xios-src/arch
 RUN printf '%s\n' \
       'export NETCDFC=/usr' \
@@ -96,7 +115,9 @@ RUN printf '%s\n' \
 %FCOMPILER      mpif90
 %LINKER         mpif90
 
-%BASE_CFLAGS    -w -std=c++11 -D__XIOS_EXCEPTION
+# -include array/cstdint: older XIOS revisions relied on transitive libstdc++
+# includes that GCC 13 no longer provides.
+%BASE_CFLAGS    -w -std=c++11 -D__XIOS_EXCEPTION -include array -include cstdint
 %PROD_CFLAGS    -O3 -D BOOST_DISABLE_ASSERTS
 %DEV_CFLAGS     -g -O2
 %DEBUG_CFLAGS   -g -DBZ_DEBUG
@@ -122,9 +143,12 @@ HDF5_LIBDIR="-L/usr/lib"
 HDF5_LIB="-lhdf5_serial_hl -lhdf5_serial -lz -lcurl"
 PTH
 WORKDIR /opt/xios-src
-RUN ./make_xios --prod --arch local --netcdf_lib netcdf4_seq --job "$(nproc)" \
-    && mkdir -p /opt/xios/lib /opt/xios/inc \
-    && cp -r lib/* /opt/xios/lib/ && cp -r inc/* /opt/xios/inc/
+# --dev (-g -O2): XIOS is fragile under -O3 with newer GCC, and symbols keep
+# crashes diagnosable. Revisit --prod once the stack is proven on this arch.
+RUN ./make_xios --dev --arch local --netcdf_lib netcdf4_seq --job "$(nproc)" \
+    && mkdir -p /opt/xios/lib /opt/xios/inc /opt/xios/bin \
+    && cp -r lib/* /opt/xios/lib/ && cp -r inc/* /opt/xios/inc/ \
+    && cp bin/xios_server.exe /opt/xios/bin/
 
 # ---------------------------------------------------------------------------
 # Environment for the LFRic make-based build: compiler selection plus the
