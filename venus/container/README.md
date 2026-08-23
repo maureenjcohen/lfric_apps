@@ -14,10 +14,13 @@ workflow: the stack is baked into the image, the code is bind-mounted.
 | rose_picker | HEAD | github.com/MetOffice/rose_picker |
 | YAXT | 0.11.0 | gitlab.dkrz.de/dkrz-sw/yaxt |
 | pFUnit (+gFTL, fArgParse) | 4.12.0 | Goddard-Fortran-Ecosystem |
-| XIOS2 | r2701 (pinned) | IPSL forge SVN (**the one unverified URL** — if `svn/XIOS2/trunk` 404s, fall back to `svn/XIOS/trunk` as used by vpcm_dev) |
+| XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | IPSL forge SVN was unreachable at build time; LFRic pins r2701 — revert to a direct `svn checkout -r 2701` of `XIOS2/trunk` when the forge is back |
 
 NetCDF is serial: use XIOS `multiple_file` mode. A parallel-HDF5 variant can
 follow for the cluster image if `one_file` output is needed.
+
+The `vpcm_dev` image must be present locally (`docker pull maureenjcohen/vpcm_dev`)
+— it donates the XIOS source tree in a copy-only stage; none of its x86 code runs.
 
 ## Build
 

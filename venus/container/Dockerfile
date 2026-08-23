@@ -13,6 +13,12 @@
 # iteration, and for x86-64 (cluster/podman) with `docker buildx --platform`.
 ##############################################################################
 
+# XIOS source donor: the vpcm_dev image carries the IPSL XIOS tree (svn r2904)
+# and the IPSL forge is unreachable from this network. Copy-only stage -- no
+# x86 code is executed. Revert to a direct `svn checkout -r 2701` of
+# XIOS2/trunk when the forge is reachable again (LFRic pins r2701).
+FROM --platform=linux/amd64 maureenjcohen/vpcm_dev:latest AS xiossrc
+
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -43,8 +49,6 @@ ENV PATH=/opt/lfric-python/bin:$PATH
 # rose_picker (GPL-utils, public GitHub mirror).
 # ---------------------------------------------------------------------------
 RUN git clone --depth 1 https://github.com/MetOffice/rose_picker.git /opt/rose_picker
-ENV PATH=/opt/rose_picker/bin:$PATH \
-    PYTHONPATH=/opt/rose_picker/lib/python:$PYTHONPATH
 
 # ---------------------------------------------------------------------------
 # YAXT 0.11.0 (halo exchange; DKRZ).
@@ -71,14 +75,21 @@ RUN git clone --recursive --depth 1 --branch v4.12.0 \
     && rm -rf /tmp/pfunit
 
 # ---------------------------------------------------------------------------
-# XIOS2 r2701 (IO server; revision per LFRic software_dependencies.rst).
+# XIOS (IO server). LFRic pins XIOS2 r2701; this build uses r2904 from the
+# vpcm_dev donor stage because the IPSL forge is currently unreachable.
 # Arch files follow the pattern proven in the vpcm_dev image.
-# NOTE: if the XIOS2 path 404s, fall back to .../svn/XIOS/trunk (the URL the
-# vpcm_dev image used). Serial NetCDF: use XIOS "multiple_file" mode.
+# Serial NetCDF: use XIOS "multiple_file" mode.
 # ---------------------------------------------------------------------------
-RUN svn checkout -r 2701 \
-      --trust-server-cert-failures="other,unknown-ca,cn-mismatch,expired,not-yet-valid" \
-      https://forge.ipsl.jussieu.fr/ioserver/svn/XIOS2/trunk /opt/xios-src
+# XIOS's bundled FCM needs the Perl URI module (a separate layer to keep the
+# earlier build caches; fold into the main apt list on the next full rebuild).
+RUN apt-get update && apt-get install -y --no-install-recommends liburi-perl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=xiossrc /trunk/XIOS /opt/xios-src
+# Drop the donor's x86 build products and its arch files; ours follow below.
+RUN rm -rf /opt/xios-src/obj /opt/xios-src/lib /opt/xios-src/bin \
+           /opt/xios-src/ppsrc /opt/xios-src/done /opt/xios-src/flags \
+           /opt/xios-src/cache /opt/xios-src/inc /opt/xios-src/.svn
 WORKDIR /opt/xios-src/arch
 RUN printf '%s\n' \
       'export NETCDFC=/usr' \
@@ -114,7 +125,7 @@ HDF5_LIBDIR="-L/usr/lib"
 HDF5_LIB="-lhdf5_serial_hl -lhdf5_serial -lz -lcurl"
 PTH
 WORKDIR /opt/xios-src
-RUN ./make_xios --prod --arch local --job "$(nproc)" \
+RUN ./make_xios --prod --arch local --netcdf_lib netcdf4_seq --job "$(nproc)" \
     && mkdir -p /opt/xios/lib /opt/xios/inc \
     && cp -r lib/* /opt/xios/lib/ && cp -r inc/* /opt/xios/inc/
 
@@ -123,6 +134,10 @@ RUN ./make_xios --prod --arch local --job "$(nproc)" \
 # include/link paths for netcdf, yaxt, xios, pfunit (compile.mk consumes
 # FC/FPP/LDMPI/FFLAGS/LDFLAGS from the environment).
 # ---------------------------------------------------------------------------
+# rose_picker is a pyproject package: install its `rose_picker` console script
+# into the venv (late layer to preserve the XIOS build cache).
+RUN /opt/lfric-python/bin/pip install --no-cache-dir /opt/rose_picker
+
 RUN NFINC=$(nf-config --includedir) && cat > /etc/profile.d/lfric.sh <<PROF
 export FC=mpif90
 export FPP="cpp -traditional-cpp"
@@ -130,8 +145,7 @@ export LDMPI=mpif90
 export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I/opt/pfunit/include"
 export LDFLAGS="-L/opt/yaxt/lib -L/opt/xios/lib -L/opt/pfunit/lib"
 export LD_LIBRARY_PATH=/opt/yaxt/lib:\$LD_LIBRARY_PATH
-export PATH=/opt/lfric-python/bin:/opt/rose_picker/bin:\$PATH
-export PYTHONPATH=/opt/rose_picker/lib/python:\$PYTHONPATH
+export PATH=/opt/lfric-python/bin:\$PATH
 PROF
 
 WORKDIR /lfric
