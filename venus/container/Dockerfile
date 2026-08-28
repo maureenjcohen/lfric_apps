@@ -23,16 +23,16 @@ FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Compilers, MPI (MPICH, matching the Met Office stack), NetCDF stack from
-# apt: Ubuntu 24.04 carries NetCDF-C 4.9.2 / NetCDF-Fortran 4.6.1 -- the
-# exact versions listed in LFRic's software_dependencies.rst.
+# Compilers, MPI (MPICH, matching the Met Office stack), parallel HDF5.
+# NetCDF-C 4.9.2 and NetCDF-Fortran 4.6.1 are built from source below
+# against parallel HDF5 (Ubuntu has no parallel NetCDF package).
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gfortran g++ gcc make cmake m4 \
     git subversion wget curl ca-certificates rsync \
     autoconf automake libtool pkg-config \
     mpich libmpich-dev \
     liburi-perl time \
-    libhdf5-dev libnetcdf-dev libnetcdff-dev \
+    libhdf5-mpich-dev \
     liblapack-dev libblas-dev \
     python3 python3-pip python3-venv \
     vim less \
@@ -43,6 +43,37 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # rewrite SSH->HTTPS here rather than editing dependencies.yaml (which must stay
 # byte-identical to upstream to keep fork rebases cheap).
 RUN git config --system url."https://github.com/".insteadOf "git@github.com:"
+
+# ---------------------------------------------------------------------------
+# NetCDF-C 4.9.2 with parallel HDF5 (Ubuntu has no parallel NetCDF package).
+# ---------------------------------------------------------------------------
+RUN wget -q https://downloads.unidata.ucar.edu/netcdf-c/4.9.2/netcdf-c-4.9.2.tar.gz \
+         -O /tmp/netcdf-c.tar.gz \
+    && cd /tmp && tar xf netcdf-c.tar.gz && cd netcdf-c-4.9.2 \
+    && CC=mpicc \
+       CPPFLAGS="-I/usr/include/hdf5/mpich" \
+       LDFLAGS="-L/usr/lib/x86_64-linux-gnu/hdf5/mpich" \
+       ./configure --prefix=/opt/netcdf --enable-parallel4 --disable-dap --disable-libxml2 \
+    && make -j"$(nproc)" && make install \
+    && rm -rf /tmp/netcdf-c*
+
+# ---------------------------------------------------------------------------
+# NetCDF-Fortran 4.6.1 against the parallel NetCDF-C above.
+# ---------------------------------------------------------------------------
+RUN cd /tmp \
+    && wget -q https://downloads.unidata.ucar.edu/netcdf-fortran/4.6.1/netcdf-fortran-4.6.1.tar.gz \
+         -O netcdf-f.tar.gz \
+    && tar xf netcdf-f.tar.gz && cd netcdf-fortran-4.6.1 \
+    && CC=mpicc FC=mpif90 F77=mpif90 \
+       CPPFLAGS="-I/opt/netcdf/include" \
+       LDFLAGS="-L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich" \
+       LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich \
+       ./configure --prefix=/opt/netcdf \
+    && make -j"$(nproc)" && make install \
+    && rm -rf /tmp/netcdf-f*
+
+ENV PATH=/opt/netcdf/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich
 
 # ---------------------------------------------------------------------------
 # Python tools: PSyclone (version pinned per LFRic docs) + build helpers.
@@ -86,7 +117,7 @@ RUN git clone --recursive --depth 1 --branch v4.12.0 \
 # XIOS (IO server). LFRic pins XIOS2 r2701; this build uses r2904 from the
 # vpcm_dev donor stage because the IPSL forge is currently unreachable.
 # Arch files follow the pattern proven in the vpcm_dev image.
-# Serial NetCDF: use XIOS "multiple_file" mode.
+# Parallel NetCDF: enables XIOS "one_file" mode for UGRID output.
 # ---------------------------------------------------------------------------
 # XIOS source selection. XIOS_SRC=git uses hiker/xios-2252 -- a git mirror of
 # XIOS2 trunk at r2252 maintained by an LFRic build-system author and described
@@ -108,8 +139,8 @@ RUN if [ "$XIOS_SRC" = "git" ]; then \
               /opt/xios-src/.git
 WORKDIR /opt/xios-src/arch
 RUN printf '%s\n' \
-      'export NETCDFC=/usr' \
-      'export NETCDFF=/usr' > arch-local.env \
+      'export NETCDFC=/opt/netcdf' \
+      'export NETCDFF=/opt/netcdf' > arch-local.env \
  && cat <<'FCM' > arch-local.fcm
 %CCOMPILER      mpicc
 %FCOMPILER      mpif90
@@ -135,17 +166,17 @@ RUN printf '%s\n' \
 %MAKE           make
 FCM
 RUN cat <<'PTH' > arch-local.path
-NETCDF_INCDIR="-I/usr/include"
-NETCDF_LIBDIR=""
+NETCDF_INCDIR="-I/opt/netcdf/include"
+NETCDF_LIBDIR="-L/opt/netcdf/lib"
 NETCDF_LIB="-lnetcdf -lnetcdff"
-HDF5_INCDIR="-I/usr/include/hdf5/serial"
-HDF5_LIBDIR="-L/usr/lib"
-HDF5_LIB="-lhdf5_serial_hl -lhdf5_serial -lz -lcurl"
+HDF5_INCDIR="-I/usr/include/hdf5/mpich"
+HDF5_LIBDIR="-L/usr/lib/x86_64-linux-gnu/hdf5/mpich"
+HDF5_LIB="-lhdf5_hl -lhdf5 -lz -lcurl"
 PTH
 WORKDIR /opt/xios-src
 # --dev (-g -O2): XIOS is fragile under -O3 with newer GCC, and symbols keep
 # crashes diagnosable. Revisit --prod once the stack is proven on this arch.
-RUN ./make_xios --dev --arch local --netcdf_lib netcdf4_seq --job "$(nproc)" \
+RUN ./make_xios --dev --arch local --netcdf_lib netcdf4_par --job "$(nproc)" \
     && mkdir -p /opt/xios/lib /opt/xios/inc /opt/xios/bin \
     && cp -r lib/* /opt/xios/lib/ && cp -r inc/* /opt/xios/inc/ \
     && cp bin/xios_server.exe /opt/xios/bin/
@@ -163,9 +194,9 @@ export FC=mpif90
 export FPP="cpp -traditional-cpp"
 export LDMPI=mpif90
 export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I$PFU/include -I$GFTLS/include -I$FARG/include"
-export LDFLAGS="-L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
-export LD_LIBRARY_PATH=/opt/yaxt/lib:\$LD_LIBRARY_PATH
-export PATH=/opt/lfric-python/bin:\$PATH
+export LDFLAGS="-L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich -L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
+export LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich:/opt/yaxt/lib:\$LD_LIBRARY_PATH
+export PATH=/opt/lfric-python/bin:/opt/netcdf/bin:\$PATH
 PROF
 
 WORKDIR /lfric
