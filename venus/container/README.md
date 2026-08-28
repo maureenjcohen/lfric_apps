@@ -9,15 +9,18 @@ workflow: the stack is baked into the image, the code is bind-mounted.
 |---|---|---|
 | gfortran / g++ | 13.x | Ubuntu 24.04 apt |
 | MPICH | 4.2.x | apt (matches Met Office stack choice) |
-| HDF5 / NetCDF-C / NetCDF-Fortran | 1.10.x / 4.9.2 / 4.6.1 | apt — versions match LFRic `software_dependencies.rst` |
+| HDF5 (parallel) | 1.10.x | apt, `libhdf5-mpich-dev` |
+| NetCDF-C / NetCDF-Fortran | 4.9.2 / 4.6.1 | built from source into `/opt/netcdf` against parallel HDF5 — versions match LFRic `software_dependencies.rst`; Ubuntu ships no parallel NetCDF package |
 | PSyclone | 3.3.1 (pinned) | pip |
 | rose_picker | HEAD | github.com/MetOffice/rose_picker |
 | YAXT | 0.11.0, `--with-idxtype=long` (LFRic halo indices are int64) | gitlab.dkrz.de/dkrz-sw/yaxt |
 | pFUnit (+gFTL, fArgParse) | 4.12.0 | Goddard-Fortran-Ecosystem |
 | XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | IPSL forge SVN was unreachable at build time; LFRic pins r2701 — revert to a direct `svn checkout -r 2701` of `XIOS2/trunk` when the forge is back. `--build-arg XIOS_SRC=git` selects `hiker/xios-2252` instead |
 
-NetCDF is serial: use XIOS `multiple_file` mode. A parallel-HDF5 variant can
-follow for the cluster image if `one_file` output is needed.
+NetCDF is **parallel**, so XIOS runs in `one_file` mode — which LFRic's UGRID
+output requires. XIOS is configured with `--netcdf_lib netcdf4_par`. Building
+against serial NetCDF instead makes XIOS silently fall back to `multiple_file`
+and the UGRID writer then aborts (BUG-004 in the bug log).
 
 The `vpcm_dev` image must be present locally (`docker pull maureenjcohen/vpcm_dev`)
 — it donates the XIOS source tree in a copy-only stage; none of its x86 code runs.
@@ -35,6 +38,17 @@ cluster runs it natively under podman. The recipe does build natively on aarch64
 but the resulting image cannot run the model — do not "fix" this by dropping the
 `--platform` flag. See BUG-001 in the bug log (planning folder, path in the
 top-level `CLAUDE.md`).
+
+### After changing the stack
+
+The code is bind-mounted, so `applications/<app>/working/` and `bin/` survive an
+image rebuild. Objects compiled against the old stack then link against the new
+one and fail at runtime in ways that look nothing like a build problem (BUG-005).
+After any change to the image, clear them before rebuilding:
+
+```bash
+cd /lfric/apps/applications/gungho_model && rm -rf working bin
+```
 
 ## Run
 
