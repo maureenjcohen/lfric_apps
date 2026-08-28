@@ -20,7 +20,7 @@ both laptop (QEMU) and cluster (podman). Details and ruled-out hypotheses are in
 bug log at `~/repos/lfric_venus_scoping/bug-log.md` (BUG-001, BUG-004, BUG-005);
 defect detail is deliberately kept out of this repo.
 
-Done: fork set up with pristine `main` + `venus` branch, purely additive footprint;
+Done: fork set up with pristine `main` + `venus` branch, `lfric_core` unmodified;
 container recipe (`venus/container/`); SOCRATES relocated to `~/repos/socrates_venus`;
 Earth example running end to end.
 
@@ -117,12 +117,19 @@ Principles:
    extension point.
 5. **Angular-momentum budget diagnostic** built in from the start (port the analysis from
    `venuslab/angular_momentum_budget.py` to run on LFRic output).
-6. Add `rose-stem/app/gungho_model/opt/rose-app-venus.conf` plus a KGO, modelled on
-   the existing hot-Jupiter configs, from the first working run — not retrofitted.
+6. Add `rose-stem/app/gungho_model/opt/rose-app-venus.conf` and an `exo-venus`
+   rose-stem task, modelled on the existing hot-Jupiter configs, from the first
+   working run — not retrofitted. **No KGO**, matching the upstream exoplanet
+   precedent: every existing `exo-*` task carries `"kgo_checks": []` and is judged
+   on completing plus a `plot_zonal.py` figure. Bit-comparison against a blessed
+   previous run suits a configuration that is expected to stay fixed; Venus physics
+   will be under active development throughout, so a KGO would mostly generate
+   churn, and blessing an output as "known good" overstates what is known for a
+   planet whose observational constraints are sparse and wide.
 7. Run to gate **G1**: multi-Venus-year stability; AM drift quantified; superrotation
    spin-up qualitatively consistent with published relaxation-forced Venus GCMs; and a
-   **green rose-stem Venus test with KGO** — testing is part of the gate, not a
-   follow-on task.
+   **green rose-stem Venus test** (runs to completion, zonal-mean diagnostics
+   inspected) — testing is part of the gate, not a follow-on task.
 
 *Standalone deliverable: "GungHo in the Venus regime" — publishable regardless of outcome.*
 *If G1 fails on AM conservation, the project stops here at a cost of ~1 FTE-year, and the
@@ -189,7 +196,8 @@ VPCM modernisation track continues unaffected.*
 - Validation ladder: idealised (G1 cases) → 1-D columns (G2, VULCAN, `rcm1d`) → 3-D
   intercomparison with VPCM (not as truth) → observations (VIRA, VEx/VIRTIS — existing
   expertise + `VIRTIS_code` — and Akatsuki).
-- rose-stem suite + KGO tests from the first assembled configuration, not retrofitted.
+- rose-stem suite from the first assembled configuration, not retrofitted. Unit tests
+  carry the regression burden; no KGO (see WP0 step 6).
 
 ### WP6 — Infrastructure *(continuous, low-level)*
 
