@@ -1,0 +1,392 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the idealised Venus forcing kernel and its supporting functions
+!>
+module venus_kernel_mod_test
+
+  use constants_mod,       only : i_def, r_def, r_second, PI, imdi
+  use coord_transform_mod, only : llr2xyz
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down,        &
+            test_equilibrium_profile, &
+            test_newton_frequency,    &
+            test_all
+
+  real(kind=r_def), parameter :: dlat = 1.0_r_def
+  real(kind=r_def), parameter :: dlon = 1.0_r_def
+  real(kind=r_def), parameter :: dz   = 10000.0_r_def
+  real(kind=r_def), parameter :: dt   = 600.0_r_def
+
+  ! Planet constants used to feign the configuration, matching
+  ! rose-app-venus.conf.
+  real(kind=r_def), parameter :: venus_gravity = 8.87_r_def
+  real(kind=r_def), parameter :: venus_cp      = 900.0_r_def
+  real(kind=r_def), parameter :: venus_p_zero  = 9.2E6_r_def
+
+  ! Stefan-Boltzmann constant, as used by venus_forcings_mod.
+  real(kind=r_def), parameter :: sigma_sb = 5.670374419E-08_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use extrusion_config_mod,       only : method_uniform, &
+                                           stretching_method_linear
+    use feign_config_mod,           only : feign_extrusion_config,      &
+                                           feign_finite_element_config, &
+                                           feign_planet_config,         &
+                                           feign_timestepping_config
+    use finite_element_config_mod,  only : cellshape_quadrilateral, &
+                                           coord_system_xyz, coord_space_wchi
+    use sci_chi_transform_mod,      only : init_chi_transforms
+    use timestepping_config_mod,    only : method_semi_implicit, &
+                                           runge_kutta_method_ssp3
+
+    implicit none
+
+    call feign_extrusion_config( planet_radius=6.0518E6_r_def,               &
+                                 domain_height=10.0_r_def,                   &
+                                 method=method_uniform,                      &
+                                 number_of_layers=2_i_def,                   &
+                                 stretching_method=stretching_method_linear, &
+                                 stretching_height=1.0_r_def,                &
+                                 eta_values=(/0.5_r_def/) )
+
+    call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
+                                      coord_order=0_i_def,               &
+                                      coord_order_nonprime=1_i_def,      &
+                                      coord_space=coord_space_wchi,      &
+                                      coord_system=coord_system_xyz,     &
+                                      element_order_h=0_i_def,           &
+                                      element_order_v=0_i_def,           &
+                                      rehabilitate=.true.,               &
+                                      vorticity_in_w1=.false. )
+
+    ! Venus: retrograde rotation, hence negative omega.
+    call feign_planet_config( gravity=venus_gravity, omega=-2.9924E-7_r_def, &
+                              rd=191.4_r_def, cp=venus_cp,                   &
+                              p_zero=venus_p_zero,                           &
+                              scaling_factor=1.0_r_def )
+
+    call feign_timestepping_config( method=method_semi_implicit,                        &
+                                    dt=real(dt, r_second), alpha=0.5_r_def,             &
+                                    tau_u=0.5_r_def, tau_t=0.5_r_def, tau_r=0.5_r_def,  &
+                                    outer_iterations=1_i_def, inner_iterations=1_i_def, &
+                                    runge_kutta_method=runge_kutta_method_ssp3,         &
+                                    spinup_period=0.0_r_second, spinup_alpha=.false.)
+
+    call init_chi_transforms(imdi, imdi)
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use sci_chi_transform_mod, only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+
+    implicit none
+
+    ! Finalise namelists
+    call final_configuration()
+    call final_chi_transforms()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Check the tabulated equilibrium temperature: interpolation against values
+  !> taken from the source data, clamping outside the table, and symmetry
+  !> about the equator.
+  @test
+  subroutine test_equilibrium_profile()
+
+    use venus_forcings_mod, only : venus_equilibrium_temperature
+
+    implicit none
+
+    real(kind=r_def) :: t_eq, answer, tol
+    real(kind=r_def) :: lat_1rad
+
+    lat_1rad = 1.0_r_def
+
+    ! Expected values are taken from the source data the table was built from.
+    ! The table itself is stored to seven significant figures, so agreement is
+    ! expected to about 1.0E-4 K rather than to working precision.
+    tol = 1.0E-3_r_def
+
+    ! Interpolated within the table, at the equator.
+    answer = 269.9290689598_r_def
+    t_eq = venus_equilibrium_temperature( 1.0E4_r_def, 0.0_r_def )
+    @assertEqual( answer, t_eq, tol )
+
+    ! Interpolated within the table, away from the equator.
+    answer = 257.9297246877_r_def
+    t_eq = venus_equilibrium_temperature( 1.0E4_r_def, lat_1rad )
+    @assertEqual( answer, t_eq, tol )
+
+    ! The profile is symmetric about the equator.
+    @assertEqual( venus_equilibrium_temperature( 1.0E4_r_def,  lat_1rad ), &
+                  venus_equilibrium_temperature( 1.0E4_r_def, -lat_1rad ), tol )
+
+    ! Above the top of the table the value is clamped to the top entry.
+    answer = 165.6109680926_r_def
+    t_eq = venus_equilibrium_temperature( 1.0E-2_r_def, 0.0_r_def )
+    @assertEqual( answer, t_eq, tol )
+
+    ! Below the bottom of the table the value is clamped to the bottom entry.
+    answer = 727.5879085254_r_def
+    t_eq = venus_equilibrium_temperature( 1.0E8_r_def, 0.0_r_def )
+    @assertEqual( answer, t_eq, tol )
+
+    ! Poleward of the last tabulated latitude the value is clamped.
+    @assertEqual( venus_equilibrium_temperature( 1.0E4_r_def, 0.5_r_def*PI ), &
+                  venus_equilibrium_temperature( 1.0E4_r_def, 0.6_r_def*PI ), tol )
+
+  end subroutine test_equilibrium_profile
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Check the Newtonian relaxation frequency: the height taper, and the
+  !> radiative timescale it is built from.
+  @test
+  subroutine test_newton_frequency()
+
+    use venus_forcings_mod, only : venus_equilibrium_temperature, &
+                                   venus_newton_frequency
+
+    implicit none
+
+    real(kind=r_def) :: nu_full, nu_half, nu, t_eq, pressure, exner, tol
+
+    pressure = 1.0E4_r_def
+    exner = ( pressure / venus_p_zero )**( 191.4_r_def / venus_cp )
+
+    ! Below the taper band the forcing is switched off entirely.
+    nu = venus_newton_frequency( exner, 0.0_r_def, 2.0E4_r_def )
+    @assertEqual( 0.0_r_def, nu, 0.0_r_def )
+    nu = venus_newton_frequency( exner, 0.0_r_def, 3.0E4_r_def )
+    @assertEqual( 0.0_r_def, nu, 0.0_r_def )
+
+    ! Above the taper band the forcing is applied in full, and is independent
+    ! of height there.
+    nu_full = venus_newton_frequency( exner, 0.0_r_def, 4.0E4_r_def )
+    tol = 1.0E-6_r_def * nu_full
+    @assertEqual( nu_full, venus_newton_frequency( exner, 0.0_r_def, 6.0E4_r_def ), tol )
+
+    ! Halfway up the taper band the forcing is half strength.
+    nu_half = venus_newton_frequency( exner, 0.0_r_def, 3.5E4_r_def )
+    @assertEqual( 0.5_r_def*nu_full, nu_half, tol )
+
+    ! The full-strength frequency is the inverse of the radiative timescale
+    ! cp*p/(4*g*sigma*T_eq**3).
+    t_eq = venus_equilibrium_temperature( pressure, 0.0_r_def )
+    @assertEqual( 4.0_r_def*venus_gravity*sigma_sb*t_eq**3_i_def &
+                    / ( venus_cp*pressure ),                     &
+                  nu_full, tol )
+
+  end subroutine test_newton_frequency
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Check the kernel itself on a canned 3x3x3 mesh.
+  @test
+  subroutine test_all()
+
+    use, intrinsic :: iso_fortran_env, only : real64
+    use venus_kernel_mod,      only : venus_code
+    use planet_config_mod,     only : scaled_radius
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only: get_w3_m3x3_q3x3x3_size,     &
+                                                   get_wtheta_m3x3_q3x3x3_size, &
+                                                   get_wchi_m3x3_q3x3x3_size
+
+    use get_unit_test_m3x3_dofmap_mod, only: get_w3_m3x3_dofmap,     &
+                                             get_wtheta_m3x3_dofmap, &
+                                             get_wchi_m3x3_dofmap
+
+    implicit none
+
+    real(kind=r_def) :: lon0, lat0, rad0
+    real(kind=r_def) :: tol ! Tolerance to default precision
+
+    integer(kind=i_def) :: cell
+
+    integer(kind=i_def) :: i, j, k, df
+    integer(kind=i_def) :: nlayers
+    integer(kind=i_def) :: ndf_w3, undf_w3
+    integer(kind=i_def) :: ndf_wth, undf_wth
+    integer(kind=i_def) :: ndf_chi, undf_chi
+
+    real(kind=r_def)    :: x, y, z
+
+    integer(kind=i_def), allocatable :: map_w3(:,:)
+    integer(kind=i_def), allocatable :: map_wth(:,:)
+    integer(kind=i_def), allocatable :: map_chi(:,:)
+
+    ! Dummy variable for passing into multi-getter routines where item is not needed
+    integer(kind=i_def) :: unused
+
+    ! Test field data
+    real(kind=r_def), allocatable :: chi_data(:,:)
+    real(kind=r_def), allocatable :: panel_id(:)
+    real(kind=r_def), allocatable :: theta_data(:)
+    real(kind=r_def), allocatable :: exner_data(:)
+    real(kind=r_def), allocatable :: height_data(:)
+    real(kind=r_def), allocatable :: dtheta_data(:)
+
+    real(kind=r_def) :: answer_dtheta
+
+    ! Get canned data for a 3-layer mesh
+    nlayers = 3
+
+    ! Get sizes
+    call get_w3_m3x3_q3x3x3_size( ndf_w3, undf_w3, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wth, undf_wth, unused, &
+                                      unused, unused,            &
+                                      unused, unused,            &
+                                      nlayers )
+
+    call get_wchi_m3x3_q3x3x3_size( ndf_chi, undf_chi, unused, &
+                                    unused, unused,            &
+                                    unused, unused,            &
+                                    nlayers )
+    ! Get dofmaps
+    call get_w3_m3x3_dofmap(map_w3)
+    call get_wtheta_m3x3_dofmap(map_wth)
+    call get_wchi_m3x3_dofmap(map_chi)
+
+    ! Create the data arrays
+    allocate(chi_data(undf_chi,3))
+    allocate(panel_id(undf_w3))
+    allocate(theta_data(undf_wth))
+    allocate(exner_data(undf_wth))
+    allocate(height_data(undf_wth))
+    allocate(dtheta_data(undf_wth))
+
+    ! Make a 3x3x3 chi field
+    lon0 = 0.0_r_def
+    lat0 = 0.0_r_def
+    rad0 = scaled_radius
+    panel_id(:) = 1.0_r_def
+
+    cell = 1
+    do i = 0,2
+      do j = 0,2
+        do k = 0,2
+          do df = 1,ndf_chi
+            call llr2xyz(lon0 + real((i-1), r_def)*dlon, &
+                         lat0 + real((j-1), r_def)*dlat, &
+                         rad0 + real(k, r_def)*dz,       &
+                         x, y, z)
+            chi_data(map_chi(df, cell) + k, 1) = x
+            chi_data(map_chi(df, cell) + k, 2) = y
+            chi_data(map_chi(df, cell) + k, 3) = z
+          end do
+        end do
+        cell = cell + 1
+      end do
+    end do
+
+    ! Create fixed data
+    theta_data(:)            = 200.0_r_def
+
+    ! Exner corresponding to 1.0E4 Pa for the Venus planet configuration.
+    exner_data(:)            = 2.342616091010574E-01_r_def
+
+    ! This unit test checks that the forcing is switched off in the deep
+    ! atmosphere, below the taper band.
+    height_data(:)           = 0.0_r_def
+
+    cell = 5
+    call venus_code( nlayers,                            &
+                     dtheta_data,                        &
+                     theta_data,                         &
+                     exner_data,                         &
+                     height_data,                        &
+                     chi_data(:,1),                      &
+                     chi_data(:,2),                      &
+                     chi_data(:,3),                      &
+                     panel_id(:),                        &
+                     dt,                                 &
+                     ndf_wth, undf_wth, map_wth(:,cell), &
+                     ndf_chi, undf_chi, map_chi(:,cell), &
+                     ndf_pid=ndf_w3,                     &
+                     undf_pid=undf_w3,                   &
+                     map_pid=map_w3(:,cell)              &
+                   )
+    answer_dtheta = 0.0_r_def  ! Below taper_bot the relaxation is switched off
+    @assertEqual( answer_dtheta, dtheta_data(map_wth(1,cell)), 0.0_r_def )
+
+    ! This unit test checks the forcing above the taper band, at the equator.
+    height_data(:) = 5.0E4_r_def
+    cell = 5
+    call venus_code( nlayers,                            &
+                     dtheta_data,                        &
+                     theta_data,                         &
+                     exner_data,                         &
+                     height_data,                        &
+                     chi_data(:,1),                      &
+                     chi_data(:,2),                      &
+                     chi_data(:,3),                      &
+                     panel_id(:),                        &
+                     dt,                                 &
+                     ndf_wth, undf_wth, map_wth(:,cell), &
+                     ndf_chi, undf_chi, map_chi(:,cell), &
+                     ndf_pid=ndf_w3,                     &
+                     undf_pid=undf_w3,                   &
+                     map_pid=map_w3(:,cell)              &
+                   )
+    answer_dtheta = 2.51192252248576E+00_r_def
+    tol = 1.0E-6_r_def * answer_dtheta ! Table is stored to 7 significant figures
+    @assertEqual( answer_dtheta, dtheta_data(map_wth(1,cell)+2), tol )
+
+    ! The same test off the equator gives a weaker forcing, confirming that
+    ! the latitudinal structure reaches the kernel.
+    cell = 1
+    call venus_code( nlayers,                            &
+                     dtheta_data,                        &
+                     theta_data,                         &
+                     exner_data,                         &
+                     height_data,                        &
+                     chi_data(:,1),                      &
+                     chi_data(:,2),                      &
+                     chi_data(:,3),                      &
+                     panel_id(:),                        &
+                     dt,                                 &
+                     ndf_wth, undf_wth, map_wth(:,cell), &
+                     ndf_chi, undf_chi, map_chi(:,cell), &
+                     ndf_pid=ndf_w3,                     &
+                     undf_pid=undf_w3,                   &
+                     map_pid=map_w3(:,cell)              &
+                   )
+    answer_dtheta = 2.07371415582427E+00_r_def
+    tol = 1.0E-6_r_def * answer_dtheta ! Table is stored to 7 significant figures
+    @assertEqual( answer_dtheta, dtheta_data(map_wth(1,cell)+2), tol )
+
+    ! Free up data in arrays
+    deallocate(map_w3)
+    deallocate(map_wth)
+    deallocate(map_chi)
+    deallocate(chi_data)
+    deallocate(panel_id)
+    deallocate(theta_data)
+    deallocate(exner_data)
+    deallocate(height_data)
+    deallocate(dtheta_data)
+
+  end subroutine test_all
+
+end module venus_kernel_mod_test

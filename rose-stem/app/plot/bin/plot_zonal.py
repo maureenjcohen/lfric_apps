@@ -72,6 +72,8 @@ def make_figures(filein, plotpath, fields, vertical_spacing,
                 levels = np.linspace(1200, 5400, 22)
             elif planetary_case == 'deep-hot-jupiter':
                 levels = np.linspace(0, 160000, 33)
+            elif planetary_case == 'venus':
+                levels = np.linspace(700, 2400, 35)
             else:
                 raise ValueError('contours for planetary_case '+planetary_case+' not implemented')
 

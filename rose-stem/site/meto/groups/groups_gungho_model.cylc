@@ -273,6 +273,7 @@
         "gungho_model_exo-shj-C48_MG_ex1a_gnu_fast-debug-64bit",
         "gungho_model_exo-dhj-C24_MG_ex1a_gnu_fast-debug-64bit",
         "gungho_model_exo-dhj-C48_MG_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_exo-venus-C24_MG_ex1a_gnu_fast-debug-64bit",
     ],
     "gungho_model_ex1a_cartesian": [
         "gungho_model_cart-skamarock_ex1a_gnu_fast-debug-64bit",

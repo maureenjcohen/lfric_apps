@@ -159,6 +159,21 @@
         "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR deep-hot-jupiter deep-hot-jupiter uniform 66 67"
     }) %}
 
+{% elif task_ns.conf_name == "exo-venus-C24_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["venus", "io_clim_daily"],
+        "resolution": "C24_MG",
+        "DT": 60,
+        "mpi_parts": 54,
+        "tsteps": 5760,
+        "crun": 2,
+        "crun_compare": false,
+        "wallclock": 30,
+        "kgo_checks": [],
+        "plot_str": "plot_zonal.py $NODAL_DATA_DIR/lfric_averages.nc $PLOT_DIR venus venus uniform 60 61"
+    }) %}
+
 {% endif %}
 
 {% do LOG.debug("Finished in site/common/gungho_model/tasks_gungho_model_exoplanet.cylc") %}
