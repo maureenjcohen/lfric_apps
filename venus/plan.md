@@ -9,21 +9,23 @@ holds the detailed resource survey and risk register. Resources: `~/repos/lfric_
 
 ## 0. Status
 
-*Last updated 2026-08-23.*
+*Last updated 2026-08-28.*
 
-**WP0 is under way; the build stack is proven.** `gungho_model` compiles and links
-against local `lfric_core` inside the `lfric_dev` container. The model does not yet
-run: it segfaults on the first XIOS diagnostic write, root-caused to an aarch64-only
-stack overflow in XIOS's UGRID path — hence the container targets **x86-64** on both
-laptop (QEMU) and cluster (podman). Details, and every hypothesis already ruled out,
-are in the bug log at `~/repos/lfric_venus_scoping/bug-log.md` (BUG-001); defect
-detail is deliberately kept out of this repo.
+**WP0 is under way; the build stack is proven and the model runs.** The C16 Earth
+example completes on native x86-64 (podman, cluster) with XIOS diagnostics written.
+This required rebuilding the container with parallel HDF5/NetCDF: serial NetCDF makes
+XIOS fall back to `multiple_file`, unimplemented in its UGRID writer. A separate
+aarch64-only XIOS stack overflow remains, so the container still targets **x86-64** on
+both laptop (QEMU) and cluster (podman). Details and ruled-out hypotheses are in the
+bug log at `~/repos/lfric_venus_scoping/bug-log.md` (BUG-001, BUG-004, BUG-005);
+defect detail is deliberately kept out of this repo.
 
 Done: fork set up with pristine `main` + `venus` branch, purely additive footprint;
-container recipe (`venus/container/`); SOCRATES relocated to `~/repos/socrates_venus`.
+container recipe (`venus/container/`); SOCRATES relocated to `~/repos/socrates_venus`;
+Earth example running end to end.
 
-Next: prove `gungho_model` runs the C16 Earth example on x86-64, then Venus
-namelists (WP0 step 2).
+Next: Venus namelists (WP0 step 2) — a `rose-app-venus.conf` following the
+hot-Jupiter precedent below.
 
 **Testing precedent found.** `rose-stem/app/gungho_model/opt/` already contains
 `rose-app-deep-hot-jupiter.conf`, `rose-app-shallow-hot-jupiter.conf` and
