@@ -193,6 +193,7 @@ RUN NFINC=$(nf-config --includedir) && PFU=$(ls -d /opt/pfunit/PFUNIT-*) \
 export FC=mpif90
 export FPP="cpp -traditional-cpp"
 export LDMPI=mpif90
+export PFUNIT=$PFU
 export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I$PFU/include -I$GFTLS/include -I$FARG/include"
 export LDFLAGS="-L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich -L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
 export LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich:/opt/yaxt/lib:\$LD_LIBRARY_PATH
