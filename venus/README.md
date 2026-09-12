@@ -1,16 +1,8 @@
 # LFRic-Venus
 
-This directory holds the planning and design documents for LFRic-Venus: a Venus
+This directory holds the container recipe and fork conventions for LFRic-Venus: a Venus
 climate model built on LFRic, developed in this fork of
 [MetOffice/lfric_apps](https://github.com/MetOffice/lfric_apps).
-
-## Documents
-
-- [plan.md](plan.md) — the modular development plan: architecture, work packages
-  WP0–WP6, gates G1/G2, milestones, risk register.
-- [feasibility-assessment.md](feasibility-assessment.md) — the underlying resource
-  survey (LFRic core/apps, VPCM, VULCAN-Venus, SOCRATES um13.0_planets) and full
-  risk discussion.
 
 ## Fork conventions
 
