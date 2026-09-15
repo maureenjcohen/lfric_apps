@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # LFRic-Venus fork only. Not an upstream Met Office workflow.
 #
-# Builds the `lfric_dev` stage of venus/container/Dockerfile and pushes it to
+# Builds venus/container/Dockerfile and pushes the image to
 # GHCR so the unit-test workflow can start in seconds instead of rebuilding
 # NetCDF, YAXT, pFUnit and XIOS each time.
 #
@@ -56,7 +56,6 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: venus/container
-          target: lfric_dev
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/lfric_dev:latest

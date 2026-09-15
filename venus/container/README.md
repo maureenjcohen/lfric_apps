@@ -1,7 +1,7 @@
 # lfric_dev container
 
-Development image for LFRic-Venus (plan WP6), mirroring the `vpcm_dev`
-workflow: the stack is baked into the image, the code is bind-mounted.
+Development image for LFRic-Venus, mirroring the `vpcm_dev` workflow: the
+stack is baked into the image, the code is bind-mounted.
 
 ## Stack
 
@@ -15,12 +15,11 @@ workflow: the stack is baked into the image, the code is bind-mounted.
 | rose_picker | HEAD | github.com/MetOffice/rose_picker |
 | YAXT | 0.11.0, `--with-idxtype=long` (LFRic halo indices are int64) | gitlab.dkrz.de/dkrz-sw/yaxt |
 | pFUnit (+gFTL, fArgParse) | 4.12.0 | Goddard-Fortran-Ecosystem |
-| XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | IPSL forge SVN was unreachable at build time; LFRic pins r2701 — revert to a direct `svn checkout -r 2701` of `XIOS2/trunk` when the forge is back. `--build-arg XIOS_SRC=git` selects `hiker/xios-2252` instead |
+| XIOS2 | **r2904** (donor: `vpcm_dev` image, copy-only stage) | LFRic pins r2701. The IPSL forge (`forge.ipsl.fr`) is intermittently unreachable, so the source comes from the donor image. `--build-arg XIOS_SRC=git` selects `hiker/xios-2252` instead |
 
 NetCDF is **parallel**, so XIOS runs in `one_file` mode — which LFRic's UGRID
-output requires. XIOS is configured with `--netcdf_lib netcdf4_par`. Building
-against serial NetCDF instead makes XIOS silently fall back to `multiple_file`
-and the UGRID writer then aborts (BUG-004 in the bug log).
+output requires. XIOS is configured with `--netcdf_lib netcdf4_par`. Serial
+NetCDF will not work.
 
 The `vpcm_dev` image must be present locally (`docker pull maureenjcohen/vpcm_dev`)
 — it donates the XIOS source tree in a copy-only stage; none of its x86 code runs.
@@ -33,18 +32,14 @@ docker build --platform linux/amd64 -t lfric_dev:amd64 .
 ```
 
 **Always build x86-64**, on both laptop and cluster: the laptop runs it under QEMU
-emulation (slow, but bit-faithful to the cluster — the `vpcm_dev` precedent), the
-cluster runs it natively under podman. The recipe does build natively on aarch64,
-but the resulting image cannot run the model — do not "fix" this by dropping the
-`--platform` flag. See BUG-001 in the bug log (planning folder, path in the
-top-level `CLAUDE.md`).
+emulation, the cluster runs it natively under podman. An aarch64 image builds but
+cannot run the model, so do not drop the `--platform` flag.
 
 ### After changing the stack
 
 The code is bind-mounted, so `applications/<app>/working/` and `bin/` survive an
-image rebuild. Objects compiled against the old stack then link against the new
-one and fail at runtime in ways that look nothing like a build problem (BUG-005).
-After any change to the image, clear them before rebuilding:
+image rebuild. Stale objects link cleanly against a new stack and then fail
+at runtime, so clear them after any change to it:
 
 ```bash
 cd /lfric/apps/applications/gungho_model && rm -rf working bin
