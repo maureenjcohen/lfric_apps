@@ -1,25 +1,29 @@
 ##############################################################################
-# lfric_dev: development image for LFRic-Venus (WP6).
+# LFRic-Venus development images. Two build targets from one recipe:
 #
-# Provides the full LFRic build stack; the lfric_core and lfric_apps clones
-# are bind-mounted at run time, mirroring the vpcm_dev workflow:
+#   lfric_test  full LFRic build stack WITHOUT XIOS. Sufficient to build and
+#               run the pFUnit unit tests, which use no IO server. Standalone:
+#               depends only on Ubuntu and public upstreams, so CI and external
+#               collaborators can build it unaided.
+#
+#   lfric_dev   lfric_test plus XIOS. Needed to run the model. Pulls the XIOS
+#               source from the vpcm_dev donor image (see that stage).
+#
+#   docker build --target lfric_test -t lfric_test:amd64 .
+#   docker build --target lfric_dev  -t lfric_dev:amd64  .
+#
+# Bind-mount the clones at run time:
 #
 #   docker run -it --rm \
 #     -v ~/repos/lfric_core:/lfric/core \
 #     -v ~/repos/lfric_apps:/lfric/apps \
-#     lfric_dev:latest
+#     lfric_dev:amd64
 #
 # The recipe is arch-agnostic: build natively on aarch64 for fast local
 # iteration, and for x86-64 (cluster/podman) with `docker buildx --platform`.
 ##############################################################################
 
-# XIOS source donor: the vpcm_dev image carries the IPSL XIOS tree (svn r2904)
-# and the IPSL forge is unreachable from this network. Copy-only stage -- no
-# x86 code is executed. Revert to a direct `svn checkout -r 2701` of
-# XIOS2/trunk when the forge is reachable again (LFRic pins r2701).
-FROM --platform=linux/amd64 maureenjcohen/vpcm_dev:latest AS xiossrc
-
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS lfric_test
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -114,6 +118,46 @@ RUN git clone --recursive --depth 1 --branch v4.12.0 \
     && rm -rf /tmp/pfunit
 
 # ---------------------------------------------------------------------------
+# Environment for the LFRic make-based build: compiler selection plus the
+# include/link paths for netcdf, yaxt, xios, pfunit (compile.mk consumes
+# FC/FPP/LDMPI/FFLAGS/LDFLAGS from the environment).
+#
+# Written in lfric_test and inherited by lfric_dev. The XIOS flags are resolved
+# at shell start from the presence of /opt/xios, so the one file is correct in
+# both images.
+# ---------------------------------------------------------------------------
+RUN NFINC=$(nf-config --includedir) && PFU=$(ls -d /opt/pfunit/PFUNIT-*) \
+    && GFTLS=$(ls -d /opt/pfunit/GFTL_SHARED-* 2>/dev/null || true) \
+    && FARG=$(ls -d /opt/pfunit/FARGPARSE-* 2>/dev/null || true) \
+    && cat > /etc/profile.d/lfric.sh <<PROF
+export FC=mpif90
+export FPP="cpp -traditional-cpp"
+export LDMPI=mpif90
+export PFUNIT=$PFU
+XIOS_INC=""
+XIOS_LIB=""
+if [ -d /opt/xios ]; then
+  XIOS_INC="-I/opt/xios/inc"
+  XIOS_LIB="-L/opt/xios/lib"
+fi
+export FFLAGS="-I$NFINC -I/opt/yaxt/include \$XIOS_INC -I$PFU/include -I$GFTLS/include -I$FARG/include"
+export LDFLAGS="-L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich -L/opt/yaxt/lib \$XIOS_LIB -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
+export LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich:/opt/yaxt/lib:\$LD_LIBRARY_PATH
+export PATH=/opt/lfric-python/bin:/opt/netcdf/bin:\$PATH
+PROF
+
+WORKDIR /lfric
+CMD ["/bin/bash", "-l"]
+
+# XIOS source donor: the vpcm_dev image carries the IPSL XIOS tree (svn r2904)
+# and the IPSL forge is unreachable from this network. Copy-only stage -- no
+# x86 code is executed. Revert to a direct `svn checkout -r 2701` of
+# XIOS2/trunk when the forge is reachable again (LFRic pins r2701).
+FROM --platform=linux/amd64 maureenjcohen/vpcm_dev:latest AS xiossrc
+
+FROM lfric_test AS lfric_dev
+
+# ---------------------------------------------------------------------------
 # XIOS (IO server). LFRic pins XIOS2 r2701; this build uses r2904 from the
 # vpcm_dev donor stage because the IPSL forge is currently unreachable.
 # Arch files follow the pattern proven in the vpcm_dev image.
@@ -180,25 +224,6 @@ RUN ./make_xios --dev --arch local --netcdf_lib netcdf4_par --job "$(nproc)" \
     && mkdir -p /opt/xios/lib /opt/xios/inc /opt/xios/bin \
     && cp -r lib/* /opt/xios/lib/ && cp -r inc/* /opt/xios/inc/ \
     && cp bin/xios_server.exe /opt/xios/bin/
-
-# ---------------------------------------------------------------------------
-# Environment for the LFRic make-based build: compiler selection plus the
-# include/link paths for netcdf, yaxt, xios, pfunit (compile.mk consumes
-# FC/FPP/LDMPI/FFLAGS/LDFLAGS from the environment).
-# ---------------------------------------------------------------------------
-RUN NFINC=$(nf-config --includedir) && PFU=$(ls -d /opt/pfunit/PFUNIT-*) \
-    && GFTLS=$(ls -d /opt/pfunit/GFTL_SHARED-* 2>/dev/null || true) \
-    && FARG=$(ls -d /opt/pfunit/FARGPARSE-* 2>/dev/null || true) \
-    && cat > /etc/profile.d/lfric.sh <<PROF
-export FC=mpif90
-export FPP="cpp -traditional-cpp"
-export LDMPI=mpif90
-export PFUNIT=$PFU
-export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I$PFU/include -I$GFTLS/include -I$FARG/include"
-export LDFLAGS="-L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich -L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
-export LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich:/opt/yaxt/lib:\$LD_LIBRARY_PATH
-export PATH=/opt/lfric-python/bin:/opt/netcdf/bin:\$PATH
-PROF
 
 WORKDIR /lfric
 CMD ["/bin/bash", "-l"]

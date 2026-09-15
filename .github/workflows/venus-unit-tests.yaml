@@ -1,0 +1,146 @@
+# -----------------------------------------------------------------------------
+# LFRic-Venus fork only. Not an upstream Met Office workflow.
+#
+# Builds and runs the pFUnit unit tests for science/gungho inside the prebuilt
+# `lfric_test` image from GHCR (see venus-image.yaml).
+#
+# Uses the two-target form `unit-tests/build` then `unit-tests/rerun`. The bare
+# `unit-tests` target does not match the `unit-tests/%` pattern rule, so it
+# misses the target-specific WORKING_DIR and dies extracting jules metadata --
+# see BUG-006 in the bug log.
+# -----------------------------------------------------------------------------
+
+name: Venus unit tests
+
+on:
+  push:
+    branches: [venus, 'venus/**']
+    paths:
+      - 'science/**'
+      - 'applications/**'
+      - 'rose-meta/**'
+      - 'dependencies.yaml'
+      - '.github/workflows/venus-unit-tests.yaml'
+  pull_request:
+    paths:
+      - 'science/**'
+      - 'applications/**'
+      - 'rose-meta/**'
+      - 'dependencies.yaml'
+      - '.github/workflows/venus-unit-tests.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: venus-unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gungho-unit-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read   # checkout
+      packages: read   # pull lfric_test from GHCR
+
+    container:
+      image: ghcr.io/${{ github.repository_owner }}/lfric_test:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    defaults:
+      run:
+        # Login shell so /etc/profile.d/lfric.sh sets FC, FPP, LDMPI, FFLAGS,
+        # LDFLAGS and PFUNIT. Without -l the build picks up none of them.
+        shell: bash -leo pipefail {0}
+
+    steps:
+      - name: Check out lfric_apps
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: lfric_apps
+          persist-credentials: false
+
+      - name: Resolve the pinned lfric_core revision
+        id: core
+        run: |
+          ref=$(python3 -c "import yaml; print(yaml.safe_load(open('lfric_apps/dependencies.yaml'))['lfric_core']['ref'])")
+          echo "Pinned lfric_core revision: $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Check out lfric_core at the pinned revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: MetOffice/lfric_core
+          ref: ${{ steps.core.outputs.ref }}
+          path: lfric_core
+          persist-credentials: false
+
+      - name: Report the environment
+        run: |
+          echo "FC=$FC"
+          echo "PFUNIT=$PFUNIT"
+          echo "FFLAGS=$FFLAGS"
+          echo "LDFLAGS=$LDFLAGS"
+          gfortran --version | head -1
+          psyclone --version 2>&1 | head -1
+          df -h "$GITHUB_WORKSPACE" | tail -1
+
+      - name: Build the unit tests
+        env:
+          CORE_ROOT_DIR: ${{ github.workspace }}/lfric_core
+          APPS_ROOT_DIR: ${{ github.workspace }}/lfric_apps
+        run: |
+          cd "$APPS_ROOT_DIR/science/gungho"
+          make -j"$(nproc)" unit-tests/build 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
+
+      - name: Run the Venus kernel tests
+        id: venus
+        env:
+          CORE_ROOT_DIR: ${{ github.workspace }}/lfric_core
+          APPS_ROOT_DIR: ${{ github.workspace }}/lfric_apps
+        run: |
+          cd "$APPS_ROOT_DIR/science/gungho"
+          make unit-tests/rerun UNIT_TEST_FILTER=venus_kernel_mod_test 2>&1 \
+            | tee "$GITHUB_WORKSPACE/venus-tests.log"
+
+      # Non-blocking: establishes the baseline for the other 314 tests without
+      # letting a pre-existing upstream failure gate Venus work.
+      - name: Run the full gungho suite (informational)
+        id: full
+        continue-on-error: true
+        env:
+          CORE_ROOT_DIR: ${{ github.workspace }}/lfric_core
+          APPS_ROOT_DIR: ${{ github.workspace }}/lfric_apps
+        run: |
+          cd "$APPS_ROOT_DIR/science/gungho"
+          make unit-tests/rerun 2>&1 | tee "$GITHUB_WORKSPACE/full-suite.log"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "## Venus unit tests"
+            echo ""
+            echo "| Step | Result |"
+            echo "|---|---|"
+            echo "| Venus kernel tests | ${{ steps.venus.outcome }} |"
+            echo "| Full gungho suite (informational) | ${{ steps.full.outcome }} |"
+            echo ""
+            echo "### Venus test output"
+            echo '```'
+            tail -40 "$GITHUB_WORKSPACE/venus-tests.log" 2>/dev/null || echo "no output captured"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unit-test-logs
+          path: |
+            build.log
+            venus-tests.log
+            full-suite.log
+          if-no-files-found: warn
+          retention-days: 30
