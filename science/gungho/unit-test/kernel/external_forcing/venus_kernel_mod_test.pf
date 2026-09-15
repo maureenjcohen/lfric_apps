@@ -136,8 +136,11 @@ contains
     @assertEqual( answer, t_eq, tol )
 
     ! The profile is symmetric about the equator.
-    @assertEqual( venus_equilibrium_temperature( 1.0E4_r_def,  lat_1rad ), &
-                  venus_equilibrium_temperature( 1.0E4_r_def, -lat_1rad ), tol )
+    ! Compare stored values as pfunit doesn't like
+    ! @assert spread over continuation lines
+    t_eq   = venus_equilibrium_temperature( 1.0E4_r_def,  lat_1rad )
+    answer = venus_equilibrium_temperature( 1.0E4_r_def, -lat_1rad )
+    @assertEqual( answer, t_eq, tol )
 
     ! Above the top of the table the value is clamped to the top entry.
     answer = 165.6109680926_r_def
@@ -150,8 +153,9 @@ contains
     @assertEqual( answer, t_eq, tol )
 
     ! Poleward of the last tabulated latitude the value is clamped.
-    @assertEqual( venus_equilibrium_temperature( 1.0E4_r_def, 0.5_r_def*PI ), &
-                  venus_equilibrium_temperature( 1.0E4_r_def, 0.6_r_def*PI ), tol )
+    t_eq   = venus_equilibrium_temperature( 1.0E4_r_def, 0.5_r_def*PI )
+    answer = venus_equilibrium_temperature( 1.0E4_r_def, 0.6_r_def*PI )
+    @assertEqual( answer, t_eq, tol )
 
   end subroutine test_equilibrium_profile
 
@@ -190,9 +194,9 @@ contains
     ! The full-strength frequency is the inverse of the radiative timescale
     ! cp*p/(4*g*sigma*T_eq**3).
     t_eq = venus_equilibrium_temperature( pressure, 0.0_r_def )
-    @assertEqual( 4.0_r_def*venus_gravity*sigma_sb*t_eq**3_i_def &
-                    / ( venus_cp*pressure ),                     &
-                  nu_full, tol )
+    nu = 4.0_r_def*venus_gravity*sigma_sb*t_eq**3_i_def &
+           / ( venus_cp*pressure )
+    @assertEqual( nu, nu_full, tol )
 
   end subroutine test_newton_frequency
 
