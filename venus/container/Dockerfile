@@ -185,6 +185,9 @@ RUN ./make_xios --dev --arch local --netcdf_lib netcdf4_par --job "$(nproc)" \
 # include/link paths for netcdf, yaxt, xios, pfunit (compile.mk consumes
 # FC/FPP/LDMPI/FFLAGS/LDFLAGS from the environment).
 # ---------------------------------------------------------------------------
+# Ubuntu's mpif90 wrapper injects -flto=auto -ffat-lto-objects. LTO then fails
+# the unit-test link on duplicate pFUnit symbol definitions, so switch it off.
+# The archives are fat LTO objects, so machine code is present either way.
 RUN NFINC=$(nf-config --includedir) && PFU=$(ls -d /opt/pfunit/PFUNIT-*) \
     && GFTLS=$(ls -d /opt/pfunit/GFTL_SHARED-* 2>/dev/null || true) \
     && FARG=$(ls -d /opt/pfunit/FARGPARSE-* 2>/dev/null || true) \
@@ -193,8 +196,8 @@ export FC=mpif90
 export FPP="cpp -traditional-cpp"
 export LDMPI=mpif90
 export PFUNIT=$PFU
-export FFLAGS="-I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I$PFU/include -I$GFTLS/include -I$FARG/include"
-export LDFLAGS="-L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich -L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
+export FFLAGS="-fno-lto -I$NFINC -I/opt/yaxt/include -I/opt/xios/inc -I$PFU/include -I$GFTLS/include -I$FARG/include"
+export LDFLAGS="-fno-lto -L/opt/netcdf/lib -L/usr/lib/x86_64-linux-gnu/hdf5/mpich -L/opt/yaxt/lib -L/opt/xios/lib -L$PFU/lib -L$GFTLS/lib -L$FARG/lib"
 export LD_LIBRARY_PATH=/opt/netcdf/lib:/usr/lib/x86_64-linux-gnu/hdf5/mpich:/opt/yaxt/lib:\$LD_LIBRARY_PATH
 export PATH=/opt/lfric-python/bin:/opt/netcdf/bin:\$PATH
 PROF
