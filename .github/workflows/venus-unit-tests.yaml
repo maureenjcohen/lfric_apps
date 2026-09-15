@@ -2,12 +2,12 @@
 # LFRic-Venus fork only. Not an upstream Met Office workflow.
 #
 # Builds and runs the pFUnit unit tests for science/gungho inside the prebuilt
-# `lfric_test` image from GHCR (see venus-image.yaml).
+# `lfric_dev` image from GHCR (see venus-image.yaml). XIOS is needed at compile
+# time: gungho's unit-test build imports the lfric-xios component.
 #
 # Uses the two-target form `unit-tests/build` then `unit-tests/rerun`. The bare
 # `unit-tests` target does not match the `unit-tests/%` pattern rule, so it
-# misses the target-specific WORKING_DIR and dies extracting jules metadata --
-# see BUG-006 in the bug log.
+# misses the target-specific WORKING_DIR and dies extracting jules metadata.
 # -----------------------------------------------------------------------------
 
 name: Venus unit tests
@@ -40,10 +40,10 @@ jobs:
     timeout-minutes: 120
     permissions:
       contents: read   # checkout
-      packages: read   # pull lfric_test from GHCR
+      packages: read   # pull lfric_dev from GHCR
 
     container:
-      image: ghcr.io/${{ github.repository_owner }}/lfric_test:latest
+      image: ghcr.io/${{ github.repository_owner }}/lfric_dev:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
