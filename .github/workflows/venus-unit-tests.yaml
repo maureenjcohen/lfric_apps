@@ -5,9 +5,12 @@
 # `lfric_dev` image from GHCR (see venus-image.yaml). XIOS is needed at compile
 # time: gungho's unit-test build imports the lfric-xios component.
 #
-# Uses the two-target form `unit-tests/build` then `unit-tests/rerun`. The bare
+# Uses the two-target form `unit-tests/build` then `unit-tests/run`. The bare
 # `unit-tests` target does not match the `unit-tests/%` pattern rule, so it
 # misses the target-specific WORKING_DIR and dies extracting jules metadata.
+#
+# `unit-tests/run` honours UNIT_TEST_FILTER; `unit-tests/rerun` accepts the
+# variable but never passes it to the test binary, so it always runs all tests.
 # -----------------------------------------------------------------------------
 
 name: Venus unit tests
@@ -101,7 +104,7 @@ jobs:
           APPS_ROOT_DIR: ${{ github.workspace }}/lfric_apps
         run: |
           cd "$APPS_ROOT_DIR/science/gungho"
-          make unit-tests/rerun UNIT_TEST_FILTER=venus_kernel_mod_test 2>&1 \
+          make unit-tests/run UNIT_TEST_FILTER=venus_kernel_mod_test 2>&1 \
             | tee "$GITHUB_WORKSPACE/venus-tests.log"
 
       # Non-blocking: establishes the baseline for the other 314 tests without
