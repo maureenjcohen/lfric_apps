@@ -1,16 +1,18 @@
 ##############################################################################
 # LFRic-Venus development images. Two build targets from one recipe:
 #
-#   lfric_test  full LFRic build stack WITHOUT XIOS. Sufficient to build and
-#               run the pFUnit unit tests, which use no IO server. Standalone:
-#               depends only on Ubuntu and public upstreams, so CI and external
-#               collaborators can build it unaided.
+#   lfric_test  build stack WITHOUT XIOS. Standalone: depends only on Ubuntu
+#               and public upstreams. This is NOT sufficient for the LFRic unit
+#               tests -- science/gungho/Makefile imports the lfric-xios
+#               component, whose lfric_xios_field_mod.f90 uses real XIOS types,
+#               so xios.mod must be present to compile them. Kept as the base
+#               layer for lfric_dev.
 #
-#   lfric_dev   lfric_test plus XIOS. Needed to run the model. Pulls the XIOS
-#               source from the vpcm_dev donor image (see that stage).
+#   lfric_dev   lfric_test plus XIOS. Needed to build the unit tests and to run
+#               the model. Pulls the XIOS source from the vpcm_dev donor image
+#               (see that stage). This is the image CI uses.
 #
-#   docker build --target lfric_test -t lfric_test:amd64 .
-#   docker build --target lfric_dev  -t lfric_dev:amd64  .
+#   docker build --target lfric_dev -t lfric_dev:amd64 .
 #
 # Bind-mount the clones at run time:
 #
