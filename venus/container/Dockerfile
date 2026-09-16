@@ -146,7 +146,7 @@ RUN printf '%s\n' \
 %LINKER         mpif90
 
 # -include array/cstdint: older XIOS revisions relied on transitive libstdc++
-# includes that GCC 13 no longer provides.
+# includes that GCC 13 does not provide.
 %BASE_CFLAGS    -w -std=c++11 -D__XIOS_EXCEPTION -include array -include cstdint
 %PROD_CFLAGS    -O3 -D BOOST_DISABLE_ASSERTS
 %DEV_CFLAGS     -g -O2

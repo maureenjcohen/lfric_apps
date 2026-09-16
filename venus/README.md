@@ -10,8 +10,14 @@ climate model built on LFRic, developed in this fork of
   receives Venus commits.
 - `venus` is the integration branch: everything Venus lives here, rebased onto
   `main` after each upstream sync.
-- Work-package branches (`venus/wp0-dynamics`, `venus/wp1-radiation`, ...) fork
-  off `venus` and merge back.
-- The Venus footprint is purely additive — new `applications/venus_model`,
-  new `science/venus_physics`, this `venus/` directory — plus surgical edits to
-  `interfaces/socrates_interface` from WP1c onward, to keep rebases cheap.
+- Work-package branches (`venus/wp0-dynamics`, ...) fork off `venus` and merge back.
+- The Venus footprint is mostly additive: new kernels under
+  `science/gungho/source/kernel/external_forcing/`, a rose-stem optional config in
+  `rose-stem/app/gungho_model/opt/`, and this `venus/` directory. It is not entirely
+  additive, and cannot be. Registering a new `theta_forcing` value needs the
+  `external_forcing=theta_forcing` enum in
+  `science/gungho/rose-meta/lfric-gungho/HEAD/rose-meta.conf`, a `case` branch in
+  `external_forcing_alg_mod.X90`, and entries in the rose-stem task and group lists.
+  Keep such edits small so the rebase surface stays known.
+- `lfric_core` is consumed unmodified. If something appears to require a change there,
+  that is a design problem to raise, not a patch to write.

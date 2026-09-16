@@ -71,3 +71,39 @@ or via the wrapper, which reads `dependencies.yaml`:
 ```bash
 cd /lfric/apps && python3 build/local_build.py -p gungho_model
 ```
+
+### Running the model
+
+```bash
+export OMP_NUM_THREADS=1
+export HDF5_USE_FILE_LOCKING=FALSE
+ulimit -s unlimited
+mpiexec -n 1 ../bin/gungho_model configuration.nml : -n 1 /opt/xios/bin/xios_server.exe
+```
+
+`OMP_NUM_THREADS` is required. The binary carries `-fopenmp`, so left unset OpenMP sizes
+its thread team to the core count and every MPI rank oversubscribes the node. Rose sets
+it; a hand-rolled `mpiexec` does not.
+
+`HDF5_USE_FILE_LOCKING=FALSE` is required when the run directory sits on a network
+filesystem that does not provide the POSIX locking HDF5 expects — CephFS among them.
+While locking is enabled, parallel NetCDF file creation fails with `Permission denied`
+as soon as more than one process writes.
+
+The stack limit matters: LFRic and XIOS both use large automatic arrays.
+
+### Optimised builds
+
+The default profile is `fast-debug`, which on gfortran maps `SAFE_OPTIMISATION` to `-Og`
+— optimise-for-debugging, not optimise. Other compilers map it to `-O2`. For a fast
+binary without `-Ofast`'s `-ffast-math`:
+
+```bash
+cd /lfric/apps/applications/gungho_model
+rm -rf working bin
+make -j8 build PROFILE=fast-debug FFLAGS_SAFE_OPTIMISATION=-O2 \
+     CORE_ROOT_DIR=/lfric/core APPS_ROOT_DIR=/lfric/apps
+```
+
+Clearing `working` and `bin` is required: the build system does not track flag changes,
+so objects built at the old level would link straight in.
