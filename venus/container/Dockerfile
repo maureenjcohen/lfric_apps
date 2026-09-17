@@ -41,6 +41,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim less \
     && rm -rf /var/lib/apt/lists/*
 
+# Ubuntu's libmpich12 is built against PMIx while its mpiexec is Hydra, which
+# serves PMI-1. MPI_Init then initialises each process as a singleton, every
+# rank reports a communicator of size 1, and an N-rank launch silently runs N
+# serial copies of the model. Debian's build has PMIx disabled. Only the
+# library is replaced: Hydra is correct, and the soname is unchanged, so the
+# HDF5, NetCDF, YAXT, XIOS and pFUnit layers above are unaffected. The version
+# is pinned so image builds stay reproducible. --force-depends is required
+# because Ubuntu's mpich package pins libmpich12 to its own exact version.
+RUN MPICH_DEB=libmpich12_4.3.0+really4.2.1-1_amd64.deb \
+    && curl -sSLO "http://deb.debian.org/debian/pool/main/m/mpich/${MPICH_DEB}" \
+    && dpkg -i --force-depends "./${MPICH_DEB}" \
+    && rm -f "./${MPICH_DEB}"
+
 # lfric_apps' dependencies.yaml pins its MetOffice repos with git@github.com:
 # SSH URLs. The container has no SSH keys, and all those repos are public, so
 # rewrite SSH->HTTPS here rather than editing dependencies.yaml (which must stay
