@@ -8,7 +8,7 @@ stack is baked into the image, the code is bind-mounted.
 | Component | Version | Source |
 |---|---|---|
 | gfortran / g++ | 13.x | Ubuntu 24.04 apt |
-| MPICH | 4.2.x | apt (matches Met Office stack choice) |
+| MPICH | 4.2.x | apt, with `libmpich12` replaced by Debian's build. Ubuntu's is compiled against PMIx while its `mpiexec` is Hydra, so `MPI_Init` makes every process a singleton and an N-rank launch runs N serial copies. Debian's has PMIx disabled; the soname is unchanged, so nothing above it needs rebuilding |
 | HDF5 (parallel) | 1.10.x | apt, `libhdf5-mpich-dev` |
 | NetCDF-C / NetCDF-Fortran | 4.9.2 / 4.6.1 | built from source into `/opt/netcdf` against parallel HDF5 — versions match LFRic `software_dependencies.rst`; Ubuntu ships no parallel NetCDF package |
 | PSyclone | 3.3.1 (pinned) | pip |
@@ -91,6 +91,22 @@ While locking is enabled, parallel NetCDF file creation fails with `Permission d
 as soon as more than one process writes.
 
 The stack limit matters: LFRic and XIOS both use large automatic arrays.
+
+Run the container with `--shm-size=8g`. UCX allocates about 4.3 MB of shared memory per
+rank, and the 64 MB default for `/dev/shm` runs out around sixteen, after which `MPI_Init`
+fails with `init_worker ... No resources are available to initiate the operation`. It is a
+container-creation flag, so an existing container cannot be corrected. Shared memory is
+allocated on demand, so a large limit costs nothing.
+
+Valid rank counts depend on the multigrid chain: the auto partitioner needs both `xprocs`
+and `yprocs` to divide the coarsest panel, so a C24 mesh with a chain down to C3 accepts
+6, 18 or 54 ranks, and anything else aborts with
+`Could not automatically partition domain.`
+
+With more than one rank, the model log goes to `PET<nn>.gungho_model.Log`, one file per
+rank, rather than to standard output. Those files are only flushed as they are written at
+`run_log_level='debug'`; at coarser levels a run that aborts early leaves an empty log and
+only the Fortran backtrace on stderr.
 
 ### Optimised builds
 
