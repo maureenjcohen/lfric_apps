@@ -17,7 +17,7 @@ name: Venus unit tests
 
 on:
   push:
-    branches: [venus, 'venus/**']
+    branches: [venus, 'venus-*']
     paths:
       - 'science/**'
       - 'applications/**'
