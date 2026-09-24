@@ -10,7 +10,8 @@ climate model built on LFRic, developed in this fork of
   receives Venus commits.
 - `venus` is the integration branch: everything Venus lives here, rebased onto
   `main` after each upstream sync.
-- Work-package branches (`venus/wp0-dynamics`, ...) fork off `venus` and merge back.
+- Work-package branches (`venus-wp1-variable-cp`, ...) fork off `venus` and merge back.
+  A `venus/…` name is not possible while a branch called `venus` exists.
 - The Venus footprint is mostly additive: new kernels under
   `science/gungho/source/kernel/external_forcing/`, a rose-stem optional config in
   `rose-stem/app/gungho_model/opt/`, and this `venus/` directory. It is not entirely

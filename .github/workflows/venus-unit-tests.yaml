@@ -107,6 +107,16 @@ jobs:
           make unit-tests/run UNIT_TEST_FILTER=venus_kernel_mod_test 2>&1 \
             | tee "$GITHUB_WORKSPACE/venus-tests.log"
 
+      - name: Run the variable c_p tests
+        id: variable_cp
+        env:
+          CORE_ROOT_DIR: ${{ github.workspace }}/lfric_core
+          APPS_ROOT_DIR: ${{ github.workspace }}/lfric_apps
+        run: |
+          cd "$APPS_ROOT_DIR/science/gungho"
+          make unit-tests/run UNIT_TEST_FILTER=variable_cp_mod_test 2>&1 \
+            | tee "$GITHUB_WORKSPACE/variable-cp-tests.log"
+
       # Non-blocking: establishes the baseline for the other 314 tests without
       # letting a pre-existing upstream failure gate Venus work.
       - name: Run the full gungho suite (informational)
@@ -128,11 +138,17 @@ jobs:
             echo "| Step | Result |"
             echo "|---|---|"
             echo "| Venus kernel tests | ${{ steps.venus.outcome }} |"
+            echo "| Variable c_p tests | ${{ steps.variable_cp.outcome }} |"
             echo "| Full gungho suite (informational) | ${{ steps.full.outcome }} |"
             echo ""
             echo "### Venus test output"
             echo '```'
             tail -40 "$GITHUB_WORKSPACE/venus-tests.log" 2>/dev/null || echo "no output captured"
+            echo '```'
+            echo ""
+            echo "### Variable c_p test output"
+            echo '```'
+            tail -40 "$GITHUB_WORKSPACE/variable-cp-tests.log" 2>/dev/null || echo "no output captured"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -144,6 +160,7 @@ jobs:
           path: |
             build.log
             venus-tests.log
+            variable-cp-tests.log
             full-suite.log
           if-no-files-found: warn
           retention-days: 30
