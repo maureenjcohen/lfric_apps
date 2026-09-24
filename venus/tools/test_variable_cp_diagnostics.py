@@ -6,7 +6,7 @@ diagnostics and the model agree.
 import numpy as np
 from scipy.integrate import solve_ivp
 
-from variable_cp_diagnostics import cp_law, static_stability, theta_l
+from variable_cp_diagnostics import cp_law, static_stability, theta_cp_law
 
 LAW = (1000.0, 460.0, 0.35)
 RD = 191.4
@@ -22,27 +22,28 @@ def test_cp_law_zero_exponent():
     assert cp_law(230.0, 1000.0, 460.0, 0.0) == 1000.0
 
 
-def test_theta_l_at_p_zero():
-    assert np.isclose(theta_l(230.0, P_ZERO, P_ZERO, RD, *LAW), 230.0)
+def test_theta_cp_law_at_p_zero():
+    assert np.isclose(theta_cp_law(230.0, P_ZERO, P_ZERO, RD, *LAW), 230.0)
 
 
-def test_theta_l_value():
+def test_theta_cp_law_value():
     # With R/cp for the namelist cp of 900 instead, this would be 637.77 K.
-    assert np.isclose(theta_l(230.0, 1.0e5, P_ZERO, RD, *LAW),
+    assert np.isclose(theta_cp_law(230.0, 1.0e5, P_ZERO, RD, *LAW),
                       584.5746538844, rtol=0, atol=1e-8)
 
 
-def test_theta_l_zero_exponent():
-    assert np.isclose(theta_l(230.0, 1.0e5, P_ZERO, RD, 1000.0, 460.0, 0.0),
+def test_theta_cp_law_zero_exponent():
+    assert np.isclose(theta_cp_law(230.0, 1.0e5, P_ZERO, RD, 1000.0, 460.0,
+                                   0.0),
                       546.5083806165, rtol=0, atol=1e-8)
 
 
-def test_theta_l_along_adiabat():
+def test_theta_cp_law_along_adiabat():
     sol = solve_ivp(lambda lnp, t: RD * t / cp_law(t, *LAW),
                     [np.log(P_ZERO), np.log(1.0e5)], [735.0],
                     rtol=1e-12, atol=1e-10)
     t_end = sol.y[0, -1]
-    assert np.isclose(theta_l(t_end, 1.0e5, P_ZERO, RD, *LAW), 735.0)
+    assert np.isclose(theta_cp_law(t_end, 1.0e5, P_ZERO, RD, *LAW), 735.0)
 
 
 def test_static_stability_zero_on_true_adiabat():

@@ -15,12 +15,12 @@ module variable_cp_mod_test
   implicit none
 
   private
-  public :: test_cp_law_values,          &
-            test_cp_law_zero_exponent,   &
-            test_theta_l_at_p_zero,      &
-            test_theta_l_value,          &
-            test_theta_l_zero_exponent,  &
-            test_theta_l_along_adiabat
+  public :: test_cp_law_values,               &
+            test_cp_law_zero_exponent,        &
+            test_theta_cp_law_at_p_zero,      &
+            test_theta_cp_law_value,          &
+            test_theta_cp_law_zero_exponent,  &
+            test_theta_cp_law_along_adiabat
 
   ! The Lebonnois et al. (2010) fit to the Venus reference atmosphere.
   real(kind=r_def), parameter :: cp_law_ref      = 1000.0_r_def
@@ -79,9 +79,9 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> At the reference pressure the potential temperature is the temperature.
   @test
-  subroutine test_theta_l_at_p_zero()
+  subroutine test_theta_cp_law_at_p_zero()
 
-    use variable_cp_mod, only : theta_l
+    use variable_cp_mod, only : theta_cp_law
 
     implicit none
 
@@ -89,24 +89,24 @@ contains
     real(kind=r_def), parameter :: tol = 1.0E-3_r_def
     real(kind=r_def)            :: theta
 
-    theta = theta_l( 230.0_r_def, p_zero, p_zero, rd, cp_law_ref, &
+    theta = theta_cp_law( 230.0_r_def, p_zero, p_zero, rd, cp_law_ref, &
                      cp_law_t0, cp_law_exponent )
     @assertEqual( 230.0_r_def, theta, tol )
 
-    theta = theta_l( 735.0_r_def, p_zero, p_zero, rd, cp_law_ref, &
+    theta = theta_cp_law( 735.0_r_def, p_zero, p_zero, rd, cp_law_ref, &
                      cp_law_t0, cp_law_exponent )
     @assertEqual( 735.0_r_def, theta, tol )
 
-  end subroutine test_theta_l_at_p_zero
+  end subroutine test_theta_cp_law_at_p_zero
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Away from the reference pressure, against a value computed by hand with
   !> the exponent R/cp_law_ref. Using R/cp with the namelist cp of 900 instead
   !> would give 637.77 K.
   @test
-  subroutine test_theta_l_value()
+  subroutine test_theta_cp_law_value()
 
-    use variable_cp_mod, only : theta_l
+    use variable_cp_mod, only : theta_cp_law
 
     implicit none
 
@@ -115,19 +115,19 @@ contains
     real(kind=r_def)            :: answer, theta
 
     answer = 584.5746538844_r_def
-    theta = theta_l( 230.0_r_def, 1.0E5_r_def, p_zero, rd, cp_law_ref, &
+    theta = theta_cp_law( 230.0_r_def, 1.0E5_r_def, p_zero, rd, cp_law_ref, &
                      cp_law_t0, cp_law_exponent )
     @assertEqual( answer, theta, tol )
 
-  end subroutine test_theta_l_value
+  end subroutine test_theta_cp_law_value
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> With a zero exponent the potential temperature is the classical one,
   !> T (p0/p)^(R/cp_law_ref).
   @test
-  subroutine test_theta_l_zero_exponent()
+  subroutine test_theta_cp_law_zero_exponent()
 
-    use variable_cp_mod, only : theta_l
+    use variable_cp_mod, only : theta_cp_law
 
     implicit none
 
@@ -136,21 +136,21 @@ contains
     real(kind=r_def)            :: answer, theta
 
     answer = 546.5083806165_r_def
-    theta = theta_l( 230.0_r_def, 1.0E5_r_def, p_zero, rd, cp_law_ref, &
+    theta = theta_cp_law( 230.0_r_def, 1.0E5_r_def, p_zero, rd, cp_law_ref, &
                      cp_law_t0, 0.0_r_def )
     @assertEqual( answer, theta, tol )
 
-  end subroutine test_theta_l_zero_exponent
+  end subroutine test_theta_cp_law_zero_exponent
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> theta_l is conserved along a true adiabat. The adiabat
+  !> theta_cp_law is conserved along a true adiabat. The adiabat
   !> dT/d(ln p) = R T / c_p(T) is integrated with fourth-order Runge-Kutta from
   !> 735 K at the reference pressure up to 1.0E5 Pa, where T is about 314.44 K.
-  !> theta_l there must still be 735 K.
+  !> theta_cp_law there must still be 735 K.
   @test
-  subroutine test_theta_l_along_adiabat()
+  subroutine test_theta_cp_law_along_adiabat()
 
-    use variable_cp_mod, only : cp_law, theta_l
+    use variable_cp_mod, only : cp_law, theta_cp_law
 
     implicit none
 
@@ -180,7 +180,7 @@ contains
     ! The parcel has cooled by over 400 K, so a pass is not a trivial one.
     @assertEqual( 314.437196456_r_def, temperature, tol )
 
-    theta = theta_l( temperature, p_end, p_zero, rd, cp_law_ref, &
+    theta = theta_cp_law( temperature, p_end, p_zero, rd, cp_law_ref, &
                      cp_law_t0, cp_law_exponent )
     @assertEqual( t_start, theta, tol )
 
@@ -198,6 +198,6 @@ contains
 
     end function adiabat_slope
 
-  end subroutine test_theta_l_along_adiabat
+  end subroutine test_theta_cp_law_along_adiabat
 
 end module variable_cp_mod_test

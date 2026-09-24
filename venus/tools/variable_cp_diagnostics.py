@@ -5,14 +5,14 @@ Computes, from the model's theta and exner:
 
   temperature       T = theta * exner                        layer centres
   cp                c_p(T) = cp_law_ref (T / cp_law_t0)^nu   layer centres
-  theta_l           potential temperature conserved along a  layer centres
+  theta_cp_law      potential temperature conserved along a  layer centres
                     true adiabat under c_p(T)
   static_stability  dT/dz + g / c_p(T)                       interior theta levels
 
-theta_l obeys theta_l^nu = T^nu + nu T0^nu ln[(p0/p)^(R/cp_law_ref)]. Its
-exponent uses the law's reference heat capacity, not the model's kappa, which
-is built on the namelist cp. The model's theta is a coordinate built on the
-namelist cp and is not the potential temperature observers use.
+theta_cp_law obeys theta_cp_law^nu = T^nu + nu T0^nu ln[(p0/p)^(R/cp_law_ref)].
+Its exponent uses the law's reference heat capacity, not the model's kappa,
+which is built on the namelist cp. The model's theta is a coordinate built on
+the namelist cp and is not the potential temperature observers use.
 
 The model writes theta on theta levels (full_levels) and exner on layer
 centres (half_levels). theta is averaged onto layer centres, as lowest-order
@@ -37,7 +37,7 @@ def cp_law(temperature, cp_law_ref, cp_law_t0, cp_law_exponent):
     return cp_law_ref * (temperature / cp_law_t0) ** cp_law_exponent
 
 
-def theta_l(temperature, pressure, p_zero, rd, cp_law_ref, cp_law_t0,
+def theta_cp_law(temperature, pressure, p_zero, rd, cp_law_ref, cp_law_t0,
             cp_law_exponent):
     """Potential temperature (K) conserved along a true adiabat under the law."""
     kappa_ref = rd / cp_law_ref
@@ -156,7 +156,7 @@ def main():
     out_cp = new_field(dst, "cp", half,
                        "heat capacity at constant pressure, c_p(T)",
                        "J kg-1 K-1", mesh_attrs)
-    out_thl = new_field(dst, "theta_l", half,
+    out_thl = new_field(dst, "theta_cp_law", half,
                         "potential temperature conserved under c_p(T)", "K",
                         mesh_attrs)
     out_s = new_field(dst, "static_stability", full,
@@ -180,7 +180,8 @@ def main():
 
         out_t[i] = temperature
         out_cp[i] = cp_law(temperature, *law)
-        out_thl[i] = theta_l(temperature, pressure, args.p_zero, args.rd, *law)
+        out_thl[i] = theta_cp_law(temperature, pressure, args.p_zero, args.rd,
+                                  *law)
         out_s[i] = static_stability(temperature, z_half, z_full, args.gravity,
                                     args.planet_radius, args.shallow, *law)
 
