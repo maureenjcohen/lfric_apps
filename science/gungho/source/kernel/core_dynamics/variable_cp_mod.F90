@@ -19,7 +19,10 @@
 !!          theta. With nu = 0 the law is a constant c_{p,ref}, and
 !!          theta_cp_law reduces to the classical T (p_0/p)^{R/c_{p,ref}}.
 !!          The law's parameters are passed in as arguments, so the functions
-!!          hold no state and are safe to call from kernels.
+!!          hold no state and are safe to call from kernels. The module also
+!!          provides the parameters of the Venus fit. They are fixed constants
+!!          rather than namelist settings because the power law is an
+!!          empirical fit to Venus; another atmosphere needs its own law.
 module variable_cp_mod
 
   use constants_mod, only : r_def
@@ -30,6 +33,14 @@ module variable_cp_mod
 
   public :: cp_law
   public :: theta_cp_law
+  public :: venus_cp_law_ref, venus_cp_law_t0, venus_cp_law_exponent
+
+  !> Heat capacity of the Venus fit at its reference temperature (J/kg/K)
+  real(kind=r_def), parameter :: venus_cp_law_ref      = 1000.0_r_def
+  !> Reference temperature of the Venus fit (K)
+  real(kind=r_def), parameter :: venus_cp_law_t0       = 460.0_r_def
+  !> Exponent of the Venus fit
+  real(kind=r_def), parameter :: venus_cp_law_exponent = 0.35_r_def
 
 contains
 

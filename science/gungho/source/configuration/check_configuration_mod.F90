@@ -37,6 +37,8 @@ module check_configuration_mod
                                   panel_edge_treatment_none,                   &
                                   panel_edge_high_order,                       &
                                   dry_field_name,                              &
+                                  theta_variable,                              &
+                                  theta_variable_moist,                        &
                                   field_names,                                 &
                                   use_density_predictor,                       &
                                   enforce_min_value,                           &
@@ -131,7 +133,9 @@ contains
                                            coord_system_native
     use formulation_config_mod,      only: use_physics,                        &
                                            use_wavedynamics,                   &
-                                           dlayer_on
+                                           dlayer_on,                          &
+                                           theta_moist_source,                 &
+                                           variable_cp
     use io_config_mod,               only: write_diag,                         &
                                            use_xios_io
     use planet_config_mod,           only: gravity,                            &
@@ -206,6 +210,18 @@ contains
       if ( .not. use_physics .and. .not. use_wavedynamics ) then
         write( log_scratch_space, '(A)' ) 'Wave dynamics and physics turned off'
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      end if
+
+      ! The variable heat capacity source term assumes dry theta
+      if ( variable_cp .and. theta_moist_source ) then
+        write( log_scratch_space, '(A)' ) &
+          'variable_cp cannot be combined with theta_moist_source'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+      if ( variable_cp .and. theta_variable == theta_variable_moist ) then
+        write( log_scratch_space, '(A)' ) &
+          'variable_cp cannot be combined with theta_variable=moist'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 
       ! Check the io namelist
