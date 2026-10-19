@@ -9,6 +9,12 @@ LFRic-Venus: a Venus climate model built on LFRic, developed in this fork of
   potential temperature θ_L and the static stability from an `lfric_diag.nc` that writes θ
   on full levels. Run it with `--help` for options. Its tests are the `test_*` functions in
   `tools/test_variable_cp_diagnostics.py`, runnable with pytest.
+- `tools/neutral_profile.py` — writes the θ table, as a Rose `[namelist:initial_temperature]`
+  fragment, for an atmosphere neutral under c_p(T): constant θ_L, built from a surface
+  temperature and pressure. At most 100 points, the size of the model's table arrays.
+- `tools/bubble_slice_analysis.py` — time series for a warm-bubble slice: background vertical
+  wind, the bubble's θ_L excess, and its centroid and top heights, each measured against a
+  run of the same background without the bubble.
 
 ## Fork conventions
 
@@ -19,8 +25,9 @@ LFRic-Venus: a Venus climate model built on LFRic, developed in this fork of
 - Work-package branches (`venus-wp1-variable-cp`, ...) fork off `venus` and merge back.
   A `venus/…` name is not possible while a branch called `venus` exists.
 - The Venus footprint is mostly additive: new kernels under
-  `science/gungho/source/kernel/external_forcing/`, the variable-c_p module under
-  `science/gungho/source/kernel/core_dynamics/`, a rose-stem optional config in
+  `science/gungho/source/kernel/external_forcing/`, the variable-c_p module and source-term
+  kernel under `science/gungho/source/kernel/core_dynamics/`, the bubble perturbation kernel
+  under `science/gungho/source/kernel/initialisation/`, rose-stem optional configs in
   `rose-stem/app/gungho_model/opt/`, and this `venus/` directory. It is not entirely
   additive, and cannot be. Registering a new `theta_forcing` value needs the
   `external_forcing=theta_forcing` enum in
