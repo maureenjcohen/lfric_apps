@@ -6,8 +6,8 @@ LFRic-Venus: a Venus climate model built on LFRic, developed in this fork of
 
 - `container/` — the `lfric_dev` image recipe.
 - `tools/variable_cp_diagnostics.py` — computes temperature, c_p(T), the variable-c_p
-  potential temperature θ_L and the static stability from an `lfric_diag.nc`. Run it with
-  `--help` for options. Its tests are the `test_*` functions in
+  potential temperature θ_L and the static stability from an `lfric_diag.nc` that writes θ
+  on full levels. Run it with `--help` for options. Its tests are the `test_*` functions in
   `tools/test_variable_cp_diagnostics.py`, runnable with pytest.
 
 ## Fork conventions

@@ -9,9 +9,11 @@
 
 module init_thermo_profile_alg_mod
 
+use base_mesh_config_mod,        only: geometry, geometry_planar
 use config_mod,                  only: config_type
 use constants_mod,               only: r_def, i_def, l_def, rmdi
 use kernel_mod,                  only: kernel_type
+use log_mod,                     only: log_event, LOG_LEVEL_ERROR
 use field_mod,                   only: field_type
 use formulation_config_mod,      only: moisture_formulation,    &
                                        moisture_formulation_dry
@@ -39,7 +41,7 @@ use initial_temperature_config_mod, only: temp_prof_size    => profile_size,    
                                           temp_prof_heights => profile_heights, &
                                           perturb, theta_pert_size,             &
                                           theta_pert_start, theta_pert_end,     &
-                                          perturb_random
+                                          perturb_random, perturb_bubble
 
 use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,   &
                                           vapour_prof_data    => profile_data,   &
@@ -54,6 +56,7 @@ use profile_interp_kernel_mod,      only: profile_interp_kernel_type, &
                                           profile_heights
 
 use sci_random_perturb_kernel_mod,  only: random_perturb_kernel_type
+use theta_bubble_perturb_kernel_mod, only: theta_bubble_perturb_kernel_type
 
 implicit none
 
@@ -69,6 +72,8 @@ type(field_type), pointer :: chi(:) => null()
 type(field_type), pointer :: panel_id => null()
 
 type( field_type ), pointer :: height_wth => null()
+type( field_type )          :: theta_pert
+real(kind=r_def)            :: bubble_centre, bubble_radius
 
 mesh     => theta%get_mesh()
 chi      => get_coordinates(mesh)
@@ -111,6 +116,22 @@ select case(perturb)
 case(perturb_random)
   call invoke( random_perturb_kernel_type( theta, height_wth, theta_pert_size, &
                                            theta_pert_start, theta_pert_end ) )
+case(perturb_bubble)
+  if ( geometry /= geometry_planar ) then
+    call log_event( 'Bubble perturbation only implemented for planar geometry', &
+                    LOG_LEVEL_ERROR )
+  end if
+  ! The bubble spans theta_pert_start to theta_pert_end in height and is as
+  ! wide as it is tall.
+  bubble_centre = 0.5_r_def * ( theta_pert_start + theta_pert_end )
+  bubble_radius = 0.5_r_def * ( theta_pert_end - theta_pert_start )
+  call theta_pert%initialise( vector_space = theta%get_function_space() )
+  call invoke( theta_bubble_perturb_kernel_type( theta_pert, chi, panel_id,   &
+                                                 theta_pert_size,             &
+                                                 bubble_centre,               &
+                                                 bubble_radius ),             &
+               inc_X_plus_Y( theta, theta_pert ) )
+  call theta_pert%field_final()
 end select
 
 end subroutine init_thermo_profile_alg
