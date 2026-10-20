@@ -41,7 +41,8 @@ use initial_temperature_config_mod, only: temp_prof_size    => profile_size,    
                                           temp_prof_heights => profile_heights, &
                                           perturb, theta_pert_size,             &
                                           theta_pert_start, theta_pert_end,     &
-                                          perturb_random, perturb_bubble
+                                          perturb_random, perturb_bubble,       &
+                                          perturb_wave
 
 use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,   &
                                           vapour_prof_data    => profile_data,   &
@@ -57,6 +58,7 @@ use profile_interp_kernel_mod,      only: profile_interp_kernel_type, &
 
 use sci_random_perturb_kernel_mod,  only: random_perturb_kernel_type
 use theta_bubble_perturb_kernel_mod, only: theta_bubble_perturb_kernel_type
+use theta_wave_perturb_kernel_mod,   only: theta_wave_perturb_kernel_type
 
 implicit none
 
@@ -130,6 +132,18 @@ case(perturb_bubble)
                                                  theta_pert_size,             &
                                                  bubble_centre,               &
                                                  bubble_radius ),             &
+               inc_X_plus_Y( theta, theta_pert ) )
+  call theta_pert%field_final()
+case(perturb_wave)
+  if ( geometry /= geometry_planar ) then
+    call log_event( 'Wave perturbation only implemented for planar geometry', &
+                    LOG_LEVEL_ERROR )
+  end if
+  call theta_pert%initialise( vector_space = theta%get_function_space() )
+  call invoke( theta_wave_perturb_kernel_type( theta_pert, theta, chi,       &
+                                               panel_id, theta_pert_size,   &
+                                               theta_pert_start,            &
+                                               theta_pert_end ),            &
                inc_X_plus_Y( theta, theta_pert ) )
   call theta_pert%field_final()
 end select
