@@ -135,7 +135,8 @@ contains
                                            use_wavedynamics,                   &
                                            dlayer_on,                          &
                                            theta_moist_source,                 &
-                                           variable_cp
+                                           variable_cp,                        &
+                                           p2theta_vert
     use io_config_mod,               only: write_diag,                         &
                                            use_xios_io
     use planet_config_mod,           only: gravity,                            &
@@ -163,7 +164,9 @@ contains
     use damping_layer_config_mod,    only: dl_base,                            &
                                            dl_str
     use extrusion_config_mod,        only: domain_height, planet_radius
-    use mixed_solver_config_mod,     only: reference_reset_time
+    use mixed_solver_config_mod,     only: reference_reset_time,               &
+                                           eliminate_variables,                &
+                                           eliminate_variables_analytic
     use helmholtz_solver_config_mod, only:                                     &
                             helmholtz_solver_preconditioner => preconditioner, &
                             preconditioner_tridiagonal
@@ -222,6 +225,15 @@ contains
         write( log_scratch_space, '(A)' ) &
           'variable_cp cannot be combined with theta_variable=moist'
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+      ! The linear solver includes the variable heat capacity term only with
+      ! the full projection operator and discrete elimination
+      if ( variable_cp .and. ( p2theta_vert .or. &
+           eliminate_variables == eliminate_variables_analytic ) ) then
+        write( log_scratch_space, '(A)' ) 'variable_cp: the linear solver ' // &
+          'omits the heat capacity term unless p2theta_vert=.false. and '   // &
+          'eliminate_variables=discrete'
+        call log_event( log_scratch_space, LOG_LEVEL_WARNING )
       end if
 
       ! Check the io namelist
