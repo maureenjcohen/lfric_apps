@@ -27,7 +27,7 @@ module variable_cp_mod_test
   real(kind=r_def), parameter :: cp_law_t0       = 460.0_r_def
   real(kind=r_def), parameter :: cp_law_exponent = 0.35_r_def
 
-  ! Venus gas constant and reference pressure, matching rose-app-venus.conf.
+  ! Venus gas constant and surface reference pressure.
   real(kind=r_def), parameter :: rd     = 191.4_r_def
   real(kind=r_def), parameter :: p_zero = 9.2E6_r_def
 

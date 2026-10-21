@@ -12,7 +12,7 @@ which rises with height wherever c_p(T) differs from cp.
 
 Gravity is constant, as in planar geometry. The output is a Rose
 [namelist:initial_temperature] fragment of profile_data, profile_heights and
-profile_size, in the layout of rose-app-venus.conf.
+profile_size, as used with test='specified_profiles'.
 """
 import argparse
 import sys

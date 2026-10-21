@@ -24,7 +24,7 @@ module weighted_proj_theta2_variable_cp_kernel_mod_test
             test_hot_increment,         &
             test_cold_increment
 
-  ! Venus gas constant, matching rose-app-venus.conf.
+  ! Venus gas constant.
   real(kind=r_def), parameter :: rd = 191.4_r_def
 
   ! Constant heat capacity on which theta and exner are defined for Venus.

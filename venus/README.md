@@ -27,7 +27,8 @@ LFRic-Venus: a Venus climate model built on LFRic, developed in this fork of
 - The Venus footprint is mostly additive: new kernels under
   `science/gungho/source/kernel/external_forcing/`, the variable-c_p module and source-term
   kernel under `science/gungho/source/kernel/core_dynamics/`, the bubble and standing-wave
-  perturbation kernels under `science/gungho/source/kernel/initialisation/`, rose-stem optional configs in
+  perturbation kernels under `science/gungho/source/kernel/initialisation/`, the variable-c_p
+  solver operator kernel under `science/gungho/source/kernel/solver/`, rose-stem optional configs in
   `rose-stem/app/gungho_model/opt/`, and this `venus/` directory. It is not entirely
   additive, and cannot be. Registering a new `theta_forcing` value needs the
   `external_forcing=theta_forcing` enum in

@@ -481,7 +481,10 @@ contains
     call log_event( "Gungho: computing si_operators", LOG_LEVEL_DEBUG )
 
     ! The linearised variable heat capacity term is only formulated for the
-    ! full projection operator with discrete elimination
+    ! full projection operator with discrete elimination. The preconditioner's
+    ! vertical operator ptheta2v omits it: the term can make a column unstable
+    ! under the true heat capacity, which the dtheta/dz clamp does not guard
+    ! against, and the preconditioner then stalls the mixed solver
     cp_in_solver = variable_cp .and. .not. p2theta_vert .and. &
                    eliminate_variables /= eliminate_variables_analytic
 

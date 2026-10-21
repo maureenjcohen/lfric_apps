@@ -23,7 +23,7 @@ module theta_variable_cp_source_kernel_mod_test
             test_crank_nicolson_surface,    &
             test_crank_nicolson_cloud_top
 
-  ! Venus gas constant and reference pressure, matching rose-app-venus.conf.
+  ! Venus gas constant and surface reference pressure.
   real(kind=r_def), parameter :: rd     = 191.4_r_def
   real(kind=r_def), parameter :: p_zero = 9.2E6_r_def
 
