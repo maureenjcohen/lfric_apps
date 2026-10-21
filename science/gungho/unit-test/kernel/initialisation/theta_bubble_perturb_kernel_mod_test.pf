@@ -1,0 +1,113 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the shape of the warm bubble perturbation to the potential temperature
+!>
+module theta_bubble_perturb_kernel_mod_test
+
+  use constants_mod, only : r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_centre, test_half_radius, test_outside, test_symmetric
+
+  real(kind=r_def), parameter :: amplitude = 5.0_r_def
+  real(kind=r_def), parameter :: z_centre  = 2000.0_r_def
+  real(kind=r_def), parameter :: radius    = 2000.0_r_def
+
+  ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+  real(kind=r_def), parameter :: tol = 1.0E-5_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At the centre the increment is the full amplitude.
+  @test
+  subroutine test_centre()
+
+    use theta_bubble_perturb_kernel_mod, only : bubble_increment
+
+    implicit none
+
+    real(kind=r_def) :: increment
+
+    increment = bubble_increment( 0.0_r_def, z_centre, amplitude, z_centre, &
+                                  radius )
+
+    @assertEqual( amplitude, increment, tol )
+
+  end subroutine test_centre
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Half way to the edge, cos^2(pi/4) = 1/2, in both directions.
+  @test
+  subroutine test_half_radius()
+
+    use theta_bubble_perturb_kernel_mod, only : bubble_increment
+
+    implicit none
+
+    real(kind=r_def) :: increment
+
+    increment = bubble_increment( 0.5_r_def * radius, z_centre, amplitude, &
+                                  z_centre, radius )
+    @assertEqual( 0.5_r_def * amplitude, increment, tol )
+
+    increment = bubble_increment( 0.0_r_def, z_centre + 0.5_r_def * radius, &
+                                  amplitude, z_centre, radius )
+    @assertEqual( 0.5_r_def * amplitude, increment, tol )
+
+  end subroutine test_half_radius
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At the edge and beyond, the increment is zero.
+  @test
+  subroutine test_outside()
+
+    use theta_bubble_perturb_kernel_mod, only : bubble_increment
+
+    implicit none
+
+    real(kind=r_def) :: increment
+
+    increment = bubble_increment( radius, z_centre, amplitude, z_centre, &
+                                  radius )
+    @assertEqual( 0.0_r_def, increment, tol )
+
+    increment = bubble_increment( 3.0_r_def * radius, z_centre, amplitude, &
+                                  z_centre, radius )
+    @assertEqual( 0.0_r_def, increment )
+
+    increment = bubble_increment( 0.0_r_def, z_centre + 1.5_r_def * radius, &
+                                  amplitude, z_centre, radius )
+    @assertEqual( 0.0_r_def, increment )
+
+  end subroutine test_outside
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The bubble is symmetric about x = 0.
+  @test
+  subroutine test_symmetric()
+
+    use theta_bubble_perturb_kernel_mod, only : bubble_increment
+
+    implicit none
+
+    real(kind=r_def) :: x, z, east, west
+
+    x = 700.0_r_def
+    z = z_centre - 400.0_r_def
+
+    east = bubble_increment(  x, z, amplitude, z_centre, radius )
+    west = bubble_increment( -x, z, amplitude, z_centre, radius )
+
+    @assertEqual( east, west )
+
+  end subroutine test_symmetric
+
+end module theta_bubble_perturb_kernel_mod_test
