@@ -97,6 +97,16 @@ jobs:
           cd "$APPS_ROOT_DIR/science/gungho"
           make -j"$(nproc)" unit-tests/build 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
 
+      - name: Run the Venus surface friction tests
+        id: venus_wind
+        env:
+          CORE_ROOT_DIR: ${{ github.workspace }}/lfric_core
+          APPS_ROOT_DIR: ${{ github.workspace }}/lfric_apps
+        run: |
+          cd "$APPS_ROOT_DIR/science/gungho"
+          make unit-tests/run UNIT_TEST_FILTER=venus_wind_kernel_mod_test 2>&1 \
+            | tee "$GITHUB_WORKSPACE/venus-wind-tests.log"
+
       - name: Run the variable c_p tests
         id: variable_cp
         env:
@@ -136,9 +146,15 @@ jobs:
             echo ""
             echo "| Step | Result |"
             echo "|---|---|"
+            echo "| Venus surface friction tests | ${{ steps.venus_wind.outcome }} |"
             echo "| Variable c_p tests | ${{ steps.variable_cp.outcome }} |"
             echo "| Variable c_p source term tests | ${{ steps.variable_cp_source.outcome }} |"
             echo "| Full gungho suite | ${{ steps.full.outcome }} |"
+            echo ""
+            echo "### Venus surface friction test output"
+            echo '```'
+            tail -40 "$GITHUB_WORKSPACE/venus-wind-tests.log" 2>/dev/null || echo "no output captured"
+            echo '```'
             echo ""
             echo "### Variable c_p test output"
             echo '```'
@@ -158,6 +174,7 @@ jobs:
           name: unit-test-logs
           path: |
             build.log
+            venus-wind-tests.log
             variable-cp-tests.log
             variable-cp-source-tests.log
             full-suite.log

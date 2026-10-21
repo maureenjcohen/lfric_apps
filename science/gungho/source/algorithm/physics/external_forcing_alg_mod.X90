@@ -22,6 +22,7 @@ module external_forcing_alg_mod
                                              wind_forcing,                       &
                                              wind_forcing_none,                  &
                                              wind_forcing_held_suarez,           &
+                                             wind_forcing_venus,                 &
                                              wind_forcing_filtering,             &
                                              wind_forcing_diffusion,             &
                                              wind_forcing_profile,               &
@@ -39,6 +40,7 @@ module external_forcing_alg_mod
 
   use held_suarez_fv_kernel_mod,       only: held_suarez_fv_kernel_type
   use held_suarez_fv_wind_kernel_mod,  only: held_suarez_fv_wind_kernel_type
+  use venus_wind_kernel_mod,           only: venus_wind_kernel_type
   use earth_like_kernel_mod,           only: earth_like_kernel_type
   use tidally_locked_earth_kernel_mod, only: tidally_locked_earth_kernel_type
   use shallow_hot_jupiter_kernel_mod,  only: shallow_hot_jupiter_kernel_type
@@ -284,6 +286,25 @@ contains
                                                       w2_rmultiplicity,      &
                                                       exner, exner_in_wth,   &
                                                       kappa, dt),            &
+                      inc_X_times_Y(du_forcing, dA) )
+
+          nullify( w2_rmultiplicity, u_physics, dA )
+
+        case(wind_forcing_venus)
+
+          call log_event( 'slow_physics: Running idealised Venus surface friction', &
+                          LOG_LEVEL_INFO )
+
+          w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() ) ! 1/multiplicity of w2
+          dA => get_da_at_w2( mesh )
+
+          call derived_fields%get_field('u_physics', u_physics)
+
+          call du_forcing%initialise( vector_space = u_physics%get_function_space() )
+          call invoke(setval_c(du_forcing, 0.0_r_def))
+
+          call invoke(venus_wind_kernel_type(du_forcing, u_physics, &
+                                             w2_rmultiplicity, dt), &
                       inc_X_times_Y(du_forcing, dA) )
 
           nullify( w2_rmultiplicity, u_physics, dA )

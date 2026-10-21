@@ -1,0 +1,102 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the idealised Venus surface friction kernel
+!>
+module venus_wind_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_lowest_layer_drag
+
+  real(r_def), parameter :: dt = 600.0_r_def
+
+contains
+
+  !> Drag acts on the horizontal dofs of the lowest layer only, at
+  !> -rate*u*dt scaled by the reciprocal multiplicity, and leaves every
+  !> other dof of the increment as it was initialised.
+  @test
+  subroutine test_lowest_layer_drag()
+
+    use venus_wind_kernel_mod, only : venus_wind_code, &
+                                      venus_surface_drag_rate
+
+    use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
+    use get_unit_test_m3x3_dofmap_mod,       only : get_w2_m3x3_dofmap
+
+    implicit none
+
+    integer(i_def) :: nlayers, ndf_w2, undf_w2, unused
+    integer(i_def) :: cell, df, k
+    integer(i_def), allocatable :: map_w2(:,:)
+
+    real(r_def), allocatable :: u_data(:)
+    real(r_def), allocatable :: du_data(:)
+    real(r_def), allocatable :: w2_rmultiplicity_data(:)
+
+    real(r_def) :: answer_du, tol
+
+    nlayers = 3
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, unused, &
+                                  unused, unused,          &
+                                  unused, unused,          &
+                                  nlayers )
+    call get_w2_m3x3_dofmap(map_w2, nlayers)
+
+    allocate(u_data(undf_w2))
+    allocate(du_data(undf_w2))
+    allocate(w2_rmultiplicity_data(undf_w2))
+
+    u_data(:)                = 10.0_r_def
+    w2_rmultiplicity_data(:) = 0.5_r_def
+    du_data(:)               = 0.0_r_def
+
+    ! Only test interior cell 5
+    cell = 5
+
+    call venus_wind_code( nlayers,                         &
+                          du_data,                         &
+                          u_data,                          &
+                          w2_rmultiplicity_data,           &
+                          dt,                              &
+                          ndf_w2, undf_w2, map_w2(:,cell)  &
+                        )
+
+    answer_du = -venus_surface_drag_rate*10.0_r_def*dt*0.5_r_def
+    tol = spacing(abs(answer_du))
+
+    ! Horizontal dofs of the lowest layer are damped
+    do df = 1, 4
+      @assertEqual( answer_du, du_data(map_w2(df,cell)), tol )
+    end do
+
+    ! Horizontal dofs above the lowest layer are untouched
+    do k = 1, nlayers-1
+      do df = 1, 4
+        @assertEqual( 0.0_r_def, du_data(map_w2(df,cell) + k) )
+      end do
+    end do
+
+    ! Vertical dofs are untouched in every layer
+    do k = 0, nlayers-1
+      @assertEqual( 0.0_r_def, du_data(map_w2(5,cell) + k) )
+      @assertEqual( 0.0_r_def, du_data(map_w2(6,cell) + k) )
+    end do
+
+    deallocate(map_w2)
+    deallocate(u_data)
+    deallocate(du_data)
+    deallocate(w2_rmultiplicity_data)
+
+  end subroutine test_lowest_layer_drag
+
+end module venus_wind_kernel_mod_test
