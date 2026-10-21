@@ -374,8 +374,6 @@ contains
     use weighted_proj_theta2_vert_kernel_mod, only: weighted_proj_theta2_vert_kernel_type
     use weighted_proj_theta2_variable_cp_kernel_mod, &
                                               only: weighted_proj_theta2_variable_cp_kernel_type
-    use weighted_proj_theta2_vert_variable_cp_kernel_mod, &
-                                              only: weighted_proj_theta2_vert_variable_cp_kernel_type
     use weighted_div_bd_kernel_mod,           only: weighted_div_bd_kernel_type
     use weighted_proj_2theta_bd_kernel_mod,   only: weighted_proj_2theta_bd_kernel_type
     use weighted_proj_theta2_bd_kernel_mod,   only: weighted_proj_theta2_bd_kernel_type
@@ -650,23 +648,6 @@ contains
                                                           req_stencil_depth,               &
                                                           moist_dyn_factor, const1, qrf) )
        end if
-       if ( cp_in_solver ) then
-         call invoke( name = "cell_and_boundary_kernels_vert_variable_cp",  &
-            weighted_div_kernel_type(div_star(level), theta_v, const1, qr), &
-            weighted_proj_theta2_vert_variable_cp_kernel_type(              &
-                                                ptheta2v(level), theta,   &
-                                                exner_in_wth, const2,     &
-                                                element_order_h,          &
-                                                element_order_v, cp, rd,  &
-                                                qr),                      &
-            ! Boundary kernels
-            weighted_div_bd_kernel_type(div_star(level), theta_v, req_stencil_depth,    &
-                                        const1, qrf),                                   &
-            ! Compound operators
-            compound_operator_kernel_type( compound_div(level), m3_rho_star(level),     &
-                                           div, rho_at_u(level), const3),               &
-            operator_setval_x_kernel_type( eliminated_q32(level), compound_div(level) ) )
-       else
        call invoke( name = "cell_and_boundary_kernels_vert",              &
           weighted_div_kernel_type(div_star(level), theta_v, const1, qr), &
           weighted_proj_theta2_vert_kernel_type(ptheta2v(level), theta,   &
@@ -679,7 +660,6 @@ contains
           compound_operator_kernel_type( compound_div(level), m3_rho_star(level),     &
                                          div, rho_at_u(level), const3),               &
           operator_setval_x_kernel_type( eliminated_q32(level), compound_div(level) ) )
-       end if
 
        if ( level == 1 .and. eliminate_variables == eliminate_variables_analytic ) then
          call invoke( eliminated_theta_q2t_kernel_type(eliminated_q2t, u_normalisation, &
