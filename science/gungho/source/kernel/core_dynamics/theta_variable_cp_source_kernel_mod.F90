@@ -17,7 +17,7 @@
 !!          \f]
 !!          which vanishes where c_p(T) = c_{p0}. Where c_p(T) > c_{p0},
 !!          expansion raises theta; where c_p(T) < c_{p0}, it lowers theta.
-!!          c_p(T) follows the Venus fit in variable_cp_mod. The temperature
+!!          c_p(T) follows the power law in variable_cp_mod. The temperature
 !!          comes from theta and the density through the equation of state.
 !!          This kernel performs a pointwise computation of this source term at
 !!          Wtheta points, using a Crank-Nicolson time discretisation to update
@@ -29,8 +29,7 @@ module theta_variable_cp_source_kernel_mod
   use constants_mod,     only : r_def, EPS
   use fs_continuity_mod, only : Wtheta
   use kernel_mod,        only : kernel_type
-  use variable_cp_mod,   only : cp_law, venus_cp_law_ref, venus_cp_law_t0,     &
-                                venus_cp_law_exponent
+  use variable_cp_mod,   only : cp_law
 
   implicit none
 
@@ -44,10 +43,13 @@ module theta_variable_cp_source_kernel_mod
   !>
   type, public, extends(kernel_type) :: theta_variable_cp_source_kernel_type
     private
-    type(arg_type) :: meta_args(7) = (/                                        &
+    type(arg_type) :: meta_args(10) = (/                                       &
         arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, Wtheta),                    &
         arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),                    &
         arg_type(GH_FIELD,  GH_REAL, GH_READ,      Wtheta),                    &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
+        arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
         arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
         arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
         arg_type(GH_SCALAR, GH_REAL, GH_READ),                                 &
@@ -75,13 +77,20 @@ contains
 !!                           exner are defined
 !> @param[in]     Rd         The gas constant
 !> @param[in]     p_zero     The reference pressure
+!> @param[in]     cp_law_ref The heat capacity of the c_p(T) law at its
+!!                           reference temperature
+!> @param[in]     cp_law_t0  The reference temperature of the c_p(T) law
+!> @param[in]     cp_law_exponent The exponent of the c_p(T) law
 subroutine theta_variable_cp_source_code( theta,       &
                                           div_u,       &
                                           rho_at_wt,   &
                                           dt,          &
                                           cp,          &
                                           Rd,          &
-                                          p_zero       )
+                                          p_zero,      &
+                                          cp_law_ref,  &
+                                          cp_law_t0,   &
+                                          cp_law_exponent )
 
   implicit none
 
@@ -90,6 +99,7 @@ subroutine theta_variable_cp_source_code( theta,       &
   real(kind=r_def), intent(in)    :: div_u
   real(kind=r_def), intent(in)    :: rho_at_wt
   real(kind=r_def), intent(in)    :: dt, cp, Rd, p_zero
+  real(kind=r_def), intent(in)    :: cp_law_ref, cp_law_t0, cp_law_exponent
 
   ! Internal variables
   real(kind=r_def) :: kappa, temperature, cp_of_t, source_term
@@ -99,8 +109,7 @@ subroutine theta_variable_cp_source_code( theta,       &
   temperature = (theta * (Rd * rho_at_wt / p_zero)**kappa)                     &
                 **(1.0_r_def / (1.0_r_def - kappa))
 
-  cp_of_t = cp_law( temperature, venus_cp_law_ref, venus_cp_law_t0,            &
-                    venus_cp_law_exponent )
+  cp_of_t = cp_law( temperature, cp_law_ref, cp_law_t0, cp_law_exponent )
 
   ! Compute source term and update potential temperature.
   ! source_term is the coefficient S in D(theta)/Dt = -S theta

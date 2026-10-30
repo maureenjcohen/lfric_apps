@@ -17,7 +17,9 @@ module theta_transport_alg_mod
   use extrusion_mod,                  only: SHIFTED
   use field_mod,                      only: field_type
   use flux_precomputations_alg_mod,   only: flux_precomputations_type
-  use formulation_config_mod,         only: theta_moist_source, variable_cp
+  use formulation_config_mod,         only: theta_moist_source, variable_cp,   &
+                                            cp_law_ref, cp_law_t0,             &
+                                            cp_law_exponent
   use fs_continuity_mod,              only: Wtheta, W2
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
@@ -411,7 +413,9 @@ contains
 
       call invoke( theta_variable_cp_source_kernel_type(theta_out_rdef, div_u, &
                                                         rho_out_wt, dt, cp,    &
-                                                        Rd, p_zero) )
+                                                        Rd, p_zero,            &
+                                                        cp_law_ref, cp_law_t0, &
+                                                        cp_law_exponent) )
     end if
 
     ! ------------------------------------------------------------------------ !

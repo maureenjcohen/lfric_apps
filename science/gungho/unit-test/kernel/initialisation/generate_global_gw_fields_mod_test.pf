@@ -111,6 +111,9 @@ contains
                                   moisture_in_solver=.true.,                &
                                   theta_moist_source=.false.,               &
                                   variable_cp=.false.,                      &
+                                  cp_law_ref=1000.0_r_def,                  &
+                                  cp_law_t0=460.0_r_def,                    &
+                                  cp_law_exponent=0.35_r_def,               &
                                   shallow=.true., use_physics=.false.,      &
                                   use_wavedynamics=.true.,                  &
                                   p2theta_vert=.true.,                      &

@@ -30,8 +30,7 @@ use argument_mod,            only : arg_type, func_type,     &
 use constants_mod,           only : r_def, i_def, r_solver
 use fs_continuity_mod,       only : W2, Wtheta
 use kernel_mod,              only : kernel_type
-use variable_cp_mod,         only : cp_law, venus_cp_law_ref, venus_cp_law_t0, &
-                                    venus_cp_law_exponent
+use variable_cp_mod,         only : cp_law
 
 implicit none
 
@@ -43,10 +42,13 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: weighted_proj_theta2_variable_cp_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                        &
+  type(arg_type) :: meta_args(9) = (/                        &
        arg_type(GH_OPERATOR, GH_REAL, GH_WRITE, Wtheta, W2), &
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     &
        arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     &
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ),              &
        arg_type(GH_SCALAR,   GH_REAL, GH_READ)               &
@@ -78,6 +80,10 @@ contains
 !! @param[in] scalar Real to scale matrix by
 !! @param[in] cp Constant heat capacity on which theta and Exner are defined
 !! @param[in] rd Gas constant
+!! @param[in] cp_law_ref Heat capacity of the c_p(T) law at its reference
+!!                       temperature
+!! @param[in] cp_law_t0 Reference temperature of the c_p(T) law
+!! @param[in] cp_law_exponent Exponent of the c_p(T) law
 !! @param[in] ndf_wt Number of degrees of freedom per cell for Wtheta
 !! @param[in] undf_wt Number of unique degrees of freedom for Wtheta
 !! @param[in] map_wt Dofmap for the cell at the base of the column for Wtheta
@@ -98,6 +104,8 @@ subroutine weighted_proj_theta2_variable_cp_code(cell, nlayers, ncell_3d,       
                                                  exner,                           &
                                                  scalar,                          &
                                                  cp, rd,                          &
+                                                 cp_law_ref, cp_law_t0,           &
+                                                 cp_law_exponent,                 &
                                                  ndf_wt, undf_wt, map_wt,         &
                                                  wt_basis, wt_diff_basis,         &
                                                  ndf_w2, w2_basis, w2_diff_basis, &
@@ -121,6 +129,9 @@ subroutine weighted_proj_theta2_variable_cp_code(cell, nlayers, ncell_3d,       
   real(kind=r_solver), dimension(undf_wt),                intent(in)    :: exner
   real(kind=r_solver),                                    intent(in)    :: scalar
   real(kind=r_def),                                       intent(in)    :: cp, rd
+  real(kind=r_def),                                       intent(in)    :: cp_law_ref
+  real(kind=r_def),                                       intent(in)    :: cp_law_t0
+  real(kind=r_def),                                       intent(in)    :: cp_law_exponent
 
   real(kind=r_def), dimension(nqp_h), intent(in) ::  wqp_h
   real(kind=r_def), dimension(nqp_v), intent(in) ::  wqp_v
@@ -160,8 +171,7 @@ subroutine weighted_proj_theta2_variable_cp_code(cell, nlayers, ncell_3d,       
           exner_at_quad = exner_at_quad + exner_e(df)*rsol_wt_basis(1,df,qp1,qp2)
         end do
         temperature = real(theta_at_quad, r_def)*real(exner_at_quad, r_def)
-        cp_of_t = cp_law( temperature, venus_cp_law_ref, venus_cp_law_t0, &
-                          venus_cp_law_exponent )
+        cp_of_t = cp_law( temperature, cp_law_ref, cp_law_t0, cp_law_exponent )
         one_plus_a = real(1.0_r_def + rd*(cp_of_t - cp)/(cp*(cp_of_t - rd)), &
                           r_solver)
         wgt = real(wqp_h(qp1)*wqp_v(qp2), r_solver)

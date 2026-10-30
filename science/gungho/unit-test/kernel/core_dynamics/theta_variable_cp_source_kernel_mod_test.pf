@@ -30,6 +30,11 @@ module theta_variable_cp_source_kernel_mod_test
   ! Constant heat capacity on which theta and exner are defined for Venus.
   real(kind=r_def), parameter :: cp = 900.0_r_def
 
+  ! The Lebonnois et al. (2010) fit to the Venus reference atmosphere.
+  real(kind=r_def), parameter :: cp_law_ref      = 1000.0_r_def
+  real(kind=r_def), parameter :: cp_law_t0       = 460.0_r_def
+  real(kind=r_def), parameter :: cp_law_exponent = 0.35_r_def
+
   real(kind=r_def), parameter :: dt    = 600.0_r_def
   real(kind=r_def), parameter :: div_u = 1.0E-4_r_def
 
@@ -51,7 +56,8 @@ contains
     theta = 735.0_r_def
 
     call theta_variable_cp_source_code( theta, 0.0_r_def, rho, dt, cp, rd, &
-                                        p_zero )
+                                        p_zero, cp_law_ref, cp_law_t0,     &
+                                        cp_law_exponent )
 
     @assertEqual( 735.0_r_def, theta )
 
@@ -65,8 +71,6 @@ contains
 
     use theta_variable_cp_source_kernel_mod, only : &
                                              theta_variable_cp_source_code
-    use variable_cp_mod,                     only : venus_cp_law_ref, &
-                                                    venus_cp_law_t0
 
     implicit none
 
@@ -74,13 +78,15 @@ contains
     real(kind=r_def), parameter :: tol = 1.0E-3_r_def
     real(kind=r_def)            :: theta, rho
 
-    rho   = p_zero / ( rd * venus_cp_law_t0 )
-    theta = venus_cp_law_t0
+    rho   = p_zero / ( rd * cp_law_t0 )
+    theta = cp_law_t0
 
     call theta_variable_cp_source_code( theta, div_u, rho, dt,          &
-                                        venus_cp_law_ref, rd, p_zero )
+                                        cp_law_ref, rd, p_zero,         &
+                                        cp_law_ref, cp_law_t0,          &
+                                        cp_law_exponent )
 
-    @assertEqual( venus_cp_law_t0, theta, tol )
+    @assertEqual( cp_law_t0, theta, tol )
 
   end subroutine test_reference_temperature
 
@@ -103,7 +109,8 @@ contains
     theta = 735.0_r_def
 
     call theta_variable_cp_source_code( theta, div_u, rho, dt, cp, rd, &
-                                        p_zero )
+                                        p_zero, cp_law_ref, cp_law_t0, &
+                                        cp_law_exponent )
 
     answer = 737.6490949974_r_def
     @assertEqual( answer, theta, tol )
@@ -132,7 +139,8 @@ contains
     theta_before = theta
 
     call theta_variable_cp_source_code( theta, div_u, rho, dt, cp, rd, &
-                                        p_zero )
+                                        p_zero, cp_law_ref, cp_law_t0, &
+                                        cp_law_exponent )
 
     answer = 979.3738054383_r_def
     @assertEqual( answer, theta, tol )

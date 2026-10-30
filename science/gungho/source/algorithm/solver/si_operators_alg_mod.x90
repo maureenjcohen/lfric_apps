@@ -38,7 +38,10 @@ module si_operators_alg_mod
                                        eos_method_projected, &
                                        p2theta_vert,         &
                                        moisture_in_solver,   &
-                                       variable_cp
+                                       variable_cp,          &
+                                       cp_law_ref,           &
+                                       cp_law_t0,            &
+                                       cp_law_exponent
   use multigrid_mod,             only: multigrid_function_space_chain, &
                                        w2_multigrid_function_space_chain, &
                                        wtheta_multigrid_function_space_chain
@@ -634,7 +637,9 @@ contains
                                                        moist_dyn_factor, const1, qr), &
                       weighted_proj_theta2_variable_cp_kernel_type(ptheta2(level), theta, &
                                                                    exner_in_wth, const2,  &
-                                                                   cp, rd, qr),           &
+                                                                   cp, rd, cp_law_ref,    &
+                                                                   cp_law_t0,             &
+                                                                   cp_law_exponent, qr),  &
                       weighted_proj_theta2_bd_kernel_type(ptheta2(level), theta,           &
                                                           req_stencil_depth, const2, qrf), &
                       weighted_proj_2theta_bd_kernel_type(p2theta(level), exner,           &

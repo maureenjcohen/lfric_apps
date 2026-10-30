@@ -61,6 +61,9 @@ contains
                                    p2theta_vert          = .true.,               &
                                    theta_moist_source    = .false.,              &
                                    variable_cp           = .false.,              &
+                                   cp_law_ref            = 1000.0_r_def,         &
+                                   cp_law_t0             = 460.0_r_def,          &
+                                   cp_law_exponent       = 0.35_r_def,           &
                                    use_physics           = .false.,              &
                                    shallow               = .false.,              &
                                    use_wavedynamics      = .true.,               &

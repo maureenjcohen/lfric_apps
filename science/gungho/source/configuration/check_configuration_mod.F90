@@ -122,7 +122,8 @@ contains
                                            LOG_LEVEL_INFO
     use constants_mod,               only: EPS,                                &
                                            r_def,                              &
-                                           i_def
+                                           i_def,                              &
+                                           rmdi
     use finite_element_config_mod,   only: cellshape,                          &
                                            cellshape_triangle,                 &
                                            element_order_h,                    &
@@ -136,6 +137,9 @@ contains
                                            dlayer_on,                          &
                                            theta_moist_source,                 &
                                            variable_cp,                        &
+                                           cp_law_ref,                         &
+                                           cp_law_t0,                          &
+                                           cp_law_exponent,                    &
                                            p2theta_vert
     use io_config_mod,               only: write_diag,                         &
                                            use_xios_io
@@ -234,6 +238,13 @@ contains
           'omits the heat capacity term unless p2theta_vert=.false. and '   // &
           'eliminate_variables=discrete'
         call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+      end if
+      ! The heat capacity law needs all three of its constants
+      if ( variable_cp .and. ( cp_law_ref <= 0.0_r_def .or.               &
+           cp_law_t0 <= 0.0_r_def .or. cp_law_exponent == rmdi ) ) then
+        write( log_scratch_space, '(A)' ) 'variable_cp needs cp_law_ref ' // &
+          'and cp_law_t0 set positive and cp_law_exponent set'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 
       ! Check the io namelist
