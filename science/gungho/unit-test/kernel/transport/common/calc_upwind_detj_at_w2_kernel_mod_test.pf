@@ -3,7 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> Test the Det(J) at W2 computation
 !>
 module calc_upwind_detj_at_w2_kernel_mod_test

@@ -3,7 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Computes the source term for the potential temperature that arises
 !!        from a temperature-dependent heat capacity
 !> @details Potential temperature and the Exner pressure are defined with the

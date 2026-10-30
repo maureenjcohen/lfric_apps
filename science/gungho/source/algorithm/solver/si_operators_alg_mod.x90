@@ -3,7 +3,9 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Compute the locally assembled SI operators.
 !> @details Compute all operators, fields and other objects needed for the
 !!          semi-implicit solver.

@@ -4,8 +4,9 @@
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
 !
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
 !-------------------------------------------------------------------------------
-
 module deep_baroclinic_wave_mod_test
 
   use constants_mod, only : r_def, i_def

@@ -3,7 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> Test the temperature-dependent heat capacity law and its potential
 !> temperature
 !>
@@ -177,7 +179,7 @@ contains
                                         + 2.0_r_def * k3 + k4 ) / 6.0_r_def
     end do
 
-    ! The parcel has cooled by over 400 K, so a pass is not a trivial one.
+    ! The parcel cools by over 400 K, so the law is tested over a wide range.
     @assertEqual( 314.437196456_r_def, temperature, tol )
 
     theta = theta_cp_law( temperature, p_end, p_zero, rd, cp_law_ref, &

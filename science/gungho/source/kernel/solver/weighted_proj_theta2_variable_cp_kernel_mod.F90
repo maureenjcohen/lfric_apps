@@ -4,6 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
 !-------------------------------------------------------------------------------
 !> @brief Compute the projection operator from the velocity space to the
 !!        potential temperature space, including the linearised variable heat
