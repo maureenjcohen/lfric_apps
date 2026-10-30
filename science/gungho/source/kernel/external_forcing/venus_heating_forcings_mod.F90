@@ -17,9 +17,9 @@
 !!          global-mean energy budget closes; q_mean stands in for the
 !!          infrared cooling that balances solar heating on Venus.
 !!
-!!          q is tabulated from the net solar flux calculations of Haus et
-!!          al. (2016), distributed with the LMD Venus PCM, which extend the
-!!          radiative transfer model of Haus, R., Kappel, D. and Arnold, G.
+!!          q is tabulated from the net solar fluxes of Haus et al. (2016),
+!!          as distributed with the LMD Venus PCM. The group's radiative
+!!          transfer model is described in Haus, R., Kappel, D. and Arnold, G.
 !!          (2015), Radiative heating and cooling in the middle and lower
 !!          atmosphere of Venus, Planet. Space Sci., 117, 262-294. The PCM's
 !!          flux table holds half the physical values; the factor of 2 is
